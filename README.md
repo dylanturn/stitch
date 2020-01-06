@@ -1,2 +1,2 @@
 # Stitch
-Data aggregator
+Data stitch.aggregator
