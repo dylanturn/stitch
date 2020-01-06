@@ -1,2 +1,2 @@
-# stitch
+# Stitch
 Data aggregator
