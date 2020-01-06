@@ -6,7 +6,7 @@
 
     <groupId>stitchdata</groupId>
     <artifactId>stitch</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0</version>
 
     <name>Stitch</name>
     <description>Stitch data stitch.aggregator</description>
@@ -44,29 +44,16 @@
         </dependency>
 
         <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
+        </dependency>
+
+        <dependency>
             <groupId>com.rabbitmq</groupId>
             <artifactId>amqp-client</artifactId>
             <version>5.2.0</version>
         </dependency>
-
-        <!-- Shuttle Satellite Dependencies -->
-        <!-- dependency>
-            <groupId>redis.clients</groupId>
-            <artifactId>jedis</artifactId>
-            <version>2.9.0</version>
-        </dependency -->
-
-        <!-- dependency>
-            <groupId>com.auth0</groupId>
-            <artifactId>auth0</artifactId>
-            <version>1.1.0</version>
-        </dependency -->
-
-        <!-- dependency>
-            <groupId>commons-httpclient</groupId>
-            <artifactId>commons-httpclient</artifactId>
-            <version>3.1</version>
-        </dependency -->
 
         <dependency>
             <groupId>org.mongodb</groupId>
