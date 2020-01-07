@@ -55,7 +55,7 @@ public class ResourceProvider {
         Iterable<Document> providers = mongoCollection.find(Filters.eq("type", "data_provider"));
         Iterable<Document> aggregators = mongoCollection.find(Filters.eq("type", "data_aggregator"));
 
-        // Create and start an instance of each stitch.aggregator.
+        // Create and start an instance of each aggregator.
         for(Document document : aggregators){
             BaseAggregator aggregator = new RedisAggregator(document, providers);
             Thread aggregatorThread = new Thread(aggregator);

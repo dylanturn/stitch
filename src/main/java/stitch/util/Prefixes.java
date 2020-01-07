@@ -1,8 +1,8 @@
 package stitch.util;
 
 public enum  Prefixes {
-    DATASTORE ("stitch/datastore"),
-    AGGREGATOR ("stitch/aggregator");
+    DATASTORE ("datastore"),
+    AGGREGATOR ("aggregator");
 
     private final String name;
 

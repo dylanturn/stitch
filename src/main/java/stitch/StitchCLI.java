@@ -15,7 +15,7 @@ import java.util.concurrent.Callable;
 import static stitch.ResourceProvider.logger;
 
 @Command(name = "stitchcli", mixinStandardHelpOptions = true, version = "stitchcli 0.1",
-        description = "Interacts with an stitch.aggregator via commandline")
+        description = "Interacts with an aggregator via commandline")
 class StitchCLI implements Callable<Integer> {
 
     private AggregatorClient aggregatorClient;
@@ -23,22 +23,22 @@ class StitchCLI implements Callable<Integer> {
     @Parameters(index = "0", description = "The action to perform.")
     private String action;
 
-    @Option(names = {"-t", "--type"}, description = "The UUID of the stitch.aggregator to interact with")
+    @Option(names = {"-t", "--type"}, description = "The UUID of the aggregator to interact with")
     private String resourceType;
 
-    @Option(names = {"-d", "--data"}, description = "The UUID of the stitch.aggregator to interact with")
+    @Option(names = {"-d", "--data"}, description = "The UUID of the aggregator to interact with")
     private String resourceData;
 
-    @Option(names = {"-a", "--aggregatorId"}, description = "The UUID of the stitch.aggregator to interact with")
+    @Option(names = {"-a", "--aggregatorId"}, description = "The UUID of the aggregator to interact with")
     private String aggregatorId;
 
-    @Option(names = {"--query"}, description = "The UUID of the stitch.aggregator to interact with")
+    @Option(names = {"--query"}, description = "The UUID of the aggregator to interact with")
     private String query = "";
 
     @Option(names = {"-q", "--quiet"}, description = "Only prints the uuids of found or listed resources")
     private boolean quiet = false;
 
-    @Option(names = {"-r", "--resourceId"}, description = "The UUID of the stitch.aggregator to interact with")
+    @Option(names = {"-r", "--resourceId"}, description = "The UUID of the aggregator to interact with")
     private String resourceId = "";
 
 
@@ -76,7 +76,7 @@ class StitchCLI implements Callable<Integer> {
             }
 
         } catch (Exception e) {
-            logger.error("Failed to connect to stitch.aggregator!", e);
+            logger.error("Failed to connect to aggregator!", e);
             return 500;
         }
         return 0;

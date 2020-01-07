@@ -120,17 +120,17 @@ public abstract class BaseDataStore extends BaseObject implements DataStore, Run
     @Override
     public void run() {
         this.connect();
-        logger.info("Creating stitch.aggregator client for: " + dsAggregator);
+        logger.info("Creating aggregator client for: " + dsAggregator);
         try {
             aggregatorClient = new AggregatorClient(dsAggregator);
-            logger.info("Connected to stitch.aggregator, registering resources...");
+            logger.info("Connected to aggregator, registering resources...");
             Iterable<Resource> resources = this.listResources(false);
             for (Resource resource : resources) {
                 logger.info("Registering: " + resource.getUUID());
                 aggregatorClient.registerResource(getId(), resource);
             }
         } catch(Exception error) {
-            logger.error("Failed to connect to stitch.aggregator: " + dsAggregator, error);
+            logger.error("Failed to connect to aggregator: " + dsAggregator, error);
         }
     }
     private String bytesToString(byte[] inBytes){

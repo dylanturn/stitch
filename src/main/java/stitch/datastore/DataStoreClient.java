@@ -15,7 +15,7 @@ public class DataStoreClient extends BaseObject implements DataStore {
     private BasicAMQPClient amqpClient;
 
     public DataStoreClient(String id) throws Exception {
-        super("stitch/datastore", id);
+        super("datastore", id);
         amqpClient = new BasicAMQPClient(getPrefix(), getId());
     }
 
@@ -60,7 +60,7 @@ public class DataStoreClient extends BaseObject implements DataStore {
             ArrayList<Resource> resourceArrayList = (ArrayList<Resource>)ois.readObject();
             return resourceArrayList;
         } catch(Exception error){
-            logger.error(String.format("Failed to list the available resource metadata for stitch.datastore %s", getId()),error);
+            logger.error(String.format("Failed to list the available resource metadata for datastore %s", getId()),error);
             return null;
         }
     }

@@ -27,7 +27,7 @@ public abstract class BaseAggregator extends BaseObject implements Aggregator, R
     private BasicAMQPServer amqpServer;
 
     public BaseAggregator(Document aggregatorArgs, Iterable<Document> providers) throws Exception {
-        super("stitch/aggregator", aggregatorArgs.getString("uuid"));
+        super("aggregator", aggregatorArgs.getString("uuid"));
         this.aggregatorArgs = aggregatorArgs;
 
         for(Document provider : providers){

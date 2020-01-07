@@ -29,18 +29,18 @@ public abstract class BaseAMQPObject extends BaseObject implements AutoCloseable
         PropertyStore propertyStore = new MongoPropertyStore();
         String secretKey = "";
         String secretSalt = "";
-        this.amqpHost = propertyStore.getString("stitch/amqp", "host");
-        this.amqpPort = propertyStore.getInt("stitch/amqp", "port");
-        this.amqpUsername = propertyStore.getString("stitch/amqp", "username");
-        this.amqpPassword = propertyStore.getSecret("stitch/amqp", "password", secretKey, secretSalt);
-        this.amqpExchange = propertyStore.getString("stitch/amqp", "exchange");
+        this.amqpHost = propertyStore.getString("amqp", "host");
+        this.amqpPort = propertyStore.getInt("amqp", "port");
+        this.amqpUsername = propertyStore.getString("amqp", "username");
+        this.amqpPassword = propertyStore.getSecret("amqp", "password", secretKey, secretSalt);
+        this.amqpExchange = propertyStore.getString("amqp", "exchange");
         propertyStore.close();
         this.monitor = new Object();
 
         // Connect to the AMQP endpoint
         try{
             ConnectionFactory factory = new ConnectionFactory();
-            URI amqpURI = URI.create(String.format("stitch.amqp://%s:%s@%s/%s", amqpUsername, amqpPassword, amqpHost, amqpUsername));
+            URI amqpURI = URI.create(String.format("amqp://%s:%s@%s/%s", amqpUsername, amqpPassword, amqpHost, amqpUsername));
             factory.setUri(amqpURI);
             connection = factory.newConnection();
             channel = connection.createChannel();

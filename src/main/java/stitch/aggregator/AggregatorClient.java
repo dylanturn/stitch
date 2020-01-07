@@ -15,7 +15,7 @@ public class AggregatorClient extends BaseObject implements Aggregator {
     private BasicAMQPClient amqpClient;
 
     public AggregatorClient(String id) throws Exception {
-        super("stitch/aggregator", id);
+        super("aggregator", id);
         amqpClient = new BasicAMQPClient(this.getPrefix(), this.getId());
     }
 
