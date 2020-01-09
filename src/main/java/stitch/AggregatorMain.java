@@ -19,9 +19,9 @@ import stitch.util.properties.PropertyStore;
 import java.util.HashMap;
 import java.util.Map;
 
-public class ResourceProvider {
+public class AggregatorMain {
 
-    static final Logger logger = Logger.getLogger(ResourceProvider.class);
+    static final Logger logger = Logger.getLogger(AggregatorMain.class);
     private static Map<String,Aggregator> aggregatorHash = new HashMap<>();
     private static Map<String,Thread> aggregatorThreads = new HashMap<>();
 

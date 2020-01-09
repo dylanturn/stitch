@@ -7,6 +7,7 @@ import com.mongodb.client.MongoDatabase;
 import org.apache.log4j.Logger;
 import org.bson.Document;
 import org.bson.types.Binary;
+import stitch.util.HealthReport;
 import stitch.util.Resource;
 
 import java.util.*;
@@ -155,5 +156,10 @@ public class MongoDataStore extends BaseDataStore implements DataStore {
             resourceList.add(toResource(document, includeData));
         }
         return resourceList;
+    }
+
+    @Override
+    public HealthReport requestHeartbeat() throws Exception {
+        return new HealthReport(true);
     }
 }

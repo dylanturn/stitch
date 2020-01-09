@@ -1,22 +1,23 @@
 package stitch.datastore;
 
 import org.apache.log4j.Logger;
-import stitch.util.BaseObject;
+import stitch.amqp.rpc.RPCObject;
 import stitch.amqp.BasicAMQPClient;
+import stitch.util.HealthReport;
 import stitch.util.Resource;
 
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
 
-public class DataStoreClient extends BaseObject implements DataStore {
+public class DataStoreClient extends RPCObject implements DataStore {
 
     static final Logger logger = Logger.getLogger(DataStoreClient.class);
     private BasicAMQPClient amqpClient;
 
     public DataStoreClient(String id) throws Exception {
-        super("datastore", id);
-        amqpClient = new BasicAMQPClient(getPrefix(), getId());
+        super(RPCPrefix.DATASTORE, id);
+        amqpClient = new BasicAMQPClient(getPrefixString(), getId());
     }
 
     // Returns the resources ID.
@@ -63,5 +64,10 @@ public class DataStoreClient extends BaseObject implements DataStore {
             logger.error(String.format("Failed to list the available resource metadata for datastore %s", getId()),error);
             return null;
         }
+    }
+
+    @Override
+    public HealthReport requestHeartbeat() throws Exception {
+        return HealthReport.fromByteArray(amqpClient.call(getRouteKey(), "requestHeartbeat", ""));
     }
 }

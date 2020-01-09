@@ -1,8 +1,7 @@
 package stitch.datastore;
 
+import stitch.util.HealthReport;
 import stitch.util.Resource;
-
-import java.io.IOException;
 
 public interface DataStore {
     String createResource(Resource resource) throws Exception;
@@ -11,4 +10,5 @@ public interface DataStore {
     boolean deleteResource(String resourceId) throws Exception;
     Iterable<Resource> listResources();
     Iterable<Resource> listResources(boolean includeData);
+    HealthReport requestHeartbeat() throws Exception;
 }

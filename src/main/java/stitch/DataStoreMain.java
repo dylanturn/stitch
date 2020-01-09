@@ -20,9 +20,9 @@ import stitch.util.properties.PropertyStore;
 import java.util.HashMap;
 import java.util.Map;
 
-public class DataProvider {
+public class DataStoreMain {
 
-    private static final Logger logger = Logger.getLogger(DataProvider.class);
+    private static final Logger logger = Logger.getLogger(DataStoreMain.class);
     private static Map<String,DataStore> providerHash = new HashMap<>();
     private static Map<String,Thread> providerThreads = new HashMap<>();
 

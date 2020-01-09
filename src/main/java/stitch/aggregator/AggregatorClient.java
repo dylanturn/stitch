@@ -2,21 +2,21 @@ package stitch.aggregator;
 
 import org.apache.log4j.Logger;
 import stitch.amqp.BasicAMQPClient;
-import stitch.util.BaseObject;
+import stitch.amqp.rpc.RPCObject;
 import stitch.util.Resource;
 
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
 
-public class AggregatorClient extends BaseObject implements Aggregator {
+public class AggregatorClient extends RPCObject implements Aggregator {
 
     static final Logger logger = Logger.getLogger(AggregatorClient.class);
     private BasicAMQPClient amqpClient;
 
     public AggregatorClient(String id) throws Exception {
-        super("aggregator", id);
-        amqpClient = new BasicAMQPClient(this.getPrefix(), this.getId());
+        super(RPCPrefix.AGGREGATOR, id);
+        amqpClient = new BasicAMQPClient(getPrefixString(), getId());
     }
 
     @Override
@@ -80,6 +80,9 @@ public class AggregatorClient extends BaseObject implements Aggregator {
     @Override
     public void registerResource(String datastoreId, Resource resource) {
         try {
+            logger.info(String.format("Registering resource: %s", resource.getUUID()));
+            logger.info(String.format("Datastore Id:         %s", datastoreId));
+            logger.info(String.format("Route Key:            %s", getRouteKey()));
             amqpClient.call(getRouteKey(), "registerResource", resource);
         } catch(Exception error){
             logger.error("Failed to register resource!", error);

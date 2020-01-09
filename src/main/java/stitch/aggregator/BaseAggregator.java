@@ -1,14 +1,13 @@
 package stitch.aggregator;
 
 import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.LongString;
 import org.apache.log4j.Logger;
 import org.bson.Document;
 import stitch.amqp.BaseAMQPHandler;
 import stitch.amqp.BasicAMQPServer;
-import stitch.datastore.BaseDataStore;
 import stitch.datastore.DataStoreClient;
-import stitch.util.BaseObject;
-import stitch.util.Prefixes;
+import stitch.amqp.rpc.RPCObject;
 import stitch.util.Resource;
 import stitch.util.ResponseBytes;
 
@@ -18,16 +17,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class BaseAggregator extends BaseObject implements Aggregator, Runnable {
+public abstract class BaseAggregator extends RPCObject implements Aggregator, Runnable {
 
-    static final Logger logger = Logger.getLogger(BaseDataStore.class);
+    static final Logger logger = Logger.getLogger(BaseAggregator.class);
 
     protected Document aggregatorArgs;
     protected HashMap<String, DataStoreClient> providerClients = new HashMap<>();
     private BasicAMQPServer amqpServer;
 
     public BaseAggregator(Document aggregatorArgs, Iterable<Document> providers) throws Exception {
-        super("aggregator", aggregatorArgs.getString("uuid"));
+        super(RPCPrefix.AGGREGATOR, aggregatorArgs.getString("uuid"));
         this.aggregatorArgs = aggregatorArgs;
 
         for(Document provider : providers){
@@ -35,7 +34,7 @@ public abstract class BaseAggregator extends BaseObject implements Aggregator, R
             providerClients.put(providerUUID, new DataStoreClient(providerUUID));
         }
 
-        amqpServer = new BasicAMQPServer(this.getPrefix(), this.getId());
+        amqpServer = new BasicAMQPServer(getPrefixString(), getId());
         amqpServer.setHandler(new BaseAMQPHandler(amqpServer) {
             @Override
             protected byte[] routeRPC(AMQP.BasicProperties messageProperties, byte[] messageBytes) {
@@ -108,18 +107,35 @@ public abstract class BaseAggregator extends BaseObject implements Aggregator, R
                             return ResponseBytes.ERROR();
                         }
                     case "RPC_registerResource":
+
+                        logger.info("Registering resource....");
+                        Object callerPrefixObject = messageProperties.getHeaders().get("caller_prefix");
+
+                        logger.info(String.format("Caller Prefix: %s", callerPrefixObject));
+                        Object callerIdObject = messageProperties.getHeaders().get("caller_id");
+
                         try {
-                            String callerPrefix = (String)messageProperties.getHeaders().get("caller_prefix");
-                            String callerId = (String)messageProperties.getHeaders().get("caller_id");
-                            if(callerPrefix == Prefixes.DATASTORE.toString()) {
-                                registerResource(callerId, Resource.fromByteArray(messageBytes));
-                            } else {
-                                logger.info(String.format("WARNING: Register resource called by %s with prefix %s", callerId, callerPrefix));
-                            }
+                            LongString longCallerPrefix = (LongString)callerPrefixObject;
+                            LongString longCallerId = (LongString)callerPrefixObject;
+                            String callerPrefix = longCallerPrefix.toString();
+                            String callerId = longCallerId.toString();
+                            Resource resource = Resource.fromByteArray(messageBytes);
+
+                            logger.trace(String.format("Resource ID:   %s", resource.getUUID()));
+                            logger.trace(String.format("Caller Prefix: %s", callerPrefix));
+                            logger.trace(String.format("Caller ID:     %s", callerId));
+
+                            registerResource(callerId, resource);
+
                         } catch (Exception error){
                             logger.error("Failed to register resource!", error);
+                            logger.error(String.format("Caller Prefix: %s", callerPrefixObject));
+                            logger.error(String.format("Caller ID:     %s", callerIdObject));
                             return ResponseBytes.ERROR();
                         }
+
+                        return null;
+
                     default:
                         logger.error("Failed to match RPC method " + messageProperties.getType());
                         return ResponseBytes.ERROR();

@@ -1,6 +1,8 @@
 package stitch;
+
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
+import org.apache.log4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -9,15 +11,19 @@ import picocli.CommandLine.Parameters;
 import stitch.aggregator.AggregatorClient;
 import stitch.util.Resource;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Properties;
 import java.util.concurrent.Callable;
-
-import static stitch.ResourceProvider.logger;
 
 @Command(name = "stitchcli", mixinStandardHelpOptions = true, version = "stitchcli 0.1",
         description = "Interacts with an aggregator via commandline")
 class StitchCLI implements Callable<Integer> {
 
+    static final Logger logger = Logger.getLogger(StitchCLI.class);
     private AggregatorClient aggregatorClient;
 
     @Parameters(index = "0", description = "The action to perform.")
@@ -41,8 +47,6 @@ class StitchCLI implements Callable<Integer> {
     @Option(names = {"-r", "--resourceId"}, description = "The UUID of the aggregator to interact with")
     private String resourceId = "";
 
-
-
     public static void main(String... args) {
         ((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger("org.mongodb.driver").setLevel(Level.ERROR);
         int exitCode = new CommandLine(new StitchCLI()).execute(args);
@@ -51,7 +55,25 @@ class StitchCLI implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
+
+        logger.trace("Loading Application Properties...");
+        Properties properties = new Properties();
+        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("~/.stitch.properties");
+        if (inputStream != null) {
+            try {
+                properties.load(inputStream);
+            } catch (IOException e) {
+                logger.error("Failed to load application properties input stream", e);
+                e.printStackTrace();
+                System.exit(100);
+            }
+        }
+
         try {
+            if(aggregatorId == null){
+                aggregatorId = properties.getProperty("aggregator");
+            }
+
             aggregatorClient = new AggregatorClient(aggregatorId);
             switch (action) {
                 case "list":

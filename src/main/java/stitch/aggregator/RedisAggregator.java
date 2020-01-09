@@ -136,6 +136,7 @@ public class RedisAggregator extends BaseAggregator implements Aggregator {
 
     @Override
     public void registerResource(String datastoreId, Resource resource) {
+        logger.info(String.format("Registering resource %s in datastore %s with redisearch cache", resource.getUUID(), datastoreId));
         Map<String, Object> resourceDocument = new HashMap<>();
         resourceDocument.put("uuid", resource.getUUID());
         resourceDocument.put("datastoreId", datastoreId);

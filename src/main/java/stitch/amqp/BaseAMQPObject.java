@@ -4,13 +4,13 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import org.apache.log4j.Logger;
-import stitch.util.BaseObject;
+import stitch.amqp.rpc.RPCObject;
 import stitch.util.properties.MongoPropertyStore;
 import stitch.util.properties.PropertyStore;
 
 import java.net.URI;
 
-public abstract class BaseAMQPObject extends BaseObject implements AutoCloseable {
+public abstract class BaseAMQPObject extends RPCObject implements AutoCloseable {
     static final Logger logger = Logger.getLogger(BaseAMQPObject.class);
     protected String routeKey;
     private String amqpUsername;
