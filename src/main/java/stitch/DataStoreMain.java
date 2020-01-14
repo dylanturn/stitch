@@ -11,9 +11,9 @@ import com.mongodb.client.model.Filters;
 import org.apache.log4j.Logger;
 import org.bson.Document;
 import org.slf4j.LoggerFactory;
-import stitch.datastore.BaseDataStore;
+import stitch.datastore.DataStoreServer;
 import stitch.datastore.DataStore;
-import stitch.datastore.MongoDataStore;
+import stitch.datastore.MongoDataStoreServer;
 import stitch.util.properties.MongoPropertyStore;
 import stitch.util.properties.PropertyStore;
 
@@ -53,7 +53,7 @@ public class DataStoreMain {
 
         // Create an instance of each provider.
         for(Document document : providers){
-            BaseDataStore dataStore = new MongoDataStore(document);
+            DataStoreServer dataStore = new MongoDataStoreServer(document);
             Thread providerThread = new Thread(dataStore);
             providerThreads.put(document.getString("uuid"), providerThread);
             providerHash.put(document.getString("uuid"), dataStore);

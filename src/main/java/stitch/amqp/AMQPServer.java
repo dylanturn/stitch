@@ -1,15 +1,21 @@
 package stitch.amqp;
 
 import com.rabbitmq.client.DeliverCallback;
+import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.log4j.Logger;
+import stitch.amqp.rpc.RPCPrefix;
+import stitch.util.HealthReport;
 
-public class BasicAMQPServer extends BaseAMQPObject implements Runnable {
+import java.util.Timer;
+import java.util.TimerTask;
 
-    static final Logger logger = Logger.getLogger(BasicAMQPServer.class);
+public abstract class AMQPServer extends AMQPObject implements Runnable {
 
-    DeliverCallback deliverCallback;
+    static final Logger logger = Logger.getLogger(AMQPServer.class);
 
-    public BasicAMQPServer(String prefix, String id) {
+    private DeliverCallback deliverCallback;
+
+    public AMQPServer(RPCPrefix prefix, String id) {
         super(prefix, id);
         logger.info("Starting up AMQP server...");
         logger.info(String.format("Prefix: %s", prefix));
@@ -20,6 +26,8 @@ public class BasicAMQPServer extends BaseAMQPObject implements Runnable {
         logger.trace("Attaching AMQP delivery callback");
         this.deliverCallback = deliverCallback;
     }
+
+    public abstract HealthReport reportHealth();
 
     @Override
     public void run() {

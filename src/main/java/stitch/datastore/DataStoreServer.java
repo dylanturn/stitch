@@ -3,40 +3,34 @@ package stitch.datastore;
 import com.rabbitmq.client.AMQP;
 import org.apache.log4j.Logger;
 import org.bson.Document;
-import stitch.aggregator.AggregatorClient;
-import stitch.amqp.BaseAMQPHandler;
-import stitch.amqp.rpc.RPCObject;
+import stitch.amqp.AMQPHandler;
+import stitch.amqp.rpc.RPCPrefix;
 import stitch.util.*;
-import stitch.amqp.BasicAMQPServer;
+import stitch.amqp.AMQPServer;
 
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
-import java.io.UnsupportedEncodingException;
 
-public abstract class BaseDataStore extends RPCObject implements DataStore, Runnable {
+import static stitch.util.Serializer.bytesToString;
 
-    static final Logger logger = Logger.getLogger(BaseDataStore.class);
+public abstract class DataStoreServer extends AMQPServer implements DataStore, Runnable {
 
-    private BasicAMQPServer amqpServer;
+    static final Logger logger = Logger.getLogger(DataStoreServer.class);
 
     protected Document providerArgs;
-    protected AggregatorClient aggregatorClient;
     protected String dsUUID;
     protected String dsType;
     protected String dsClass;
-    protected String dsAggregator;
 
-    public BaseDataStore(Document providerArgs) throws Exception {
+    public DataStoreServer(Document providerArgs) throws Exception {
         super(RPCPrefix.DATASTORE, providerArgs.getString("uuid"));
 
         this.providerArgs = providerArgs;
         dsUUID = providerArgs.getString("uuid");
         dsType = providerArgs.getString("type");
         dsClass = providerArgs.getString("class");
-        dsAggregator = providerArgs.getString("aggregatorId");
 
-        amqpServer = new BasicAMQPServer(getPrefixString(), getId());
-        amqpServer.setHandler(new BaseAMQPHandler(amqpServer) {
+        setHandler(new AMQPHandler(this) {
             @Override
             protected byte[] routeRPC(AMQP.BasicProperties messageProperties, byte[] messageBytes) {
                 switch (messageProperties.getType()) {
@@ -74,7 +68,7 @@ public abstract class BaseDataStore extends RPCObject implements DataStore, Runn
                             }
                             return Resource.toByteArray(resource);
                         } catch ( Exception error) {
-                            logger.error(String.format("Failed to get Resource: %s",bytesToString(messageBytes)), error);
+                            logger.error(String.format("Failed to get Resource: %s", bytesToString(messageBytes)), error);
                             return ResponseBytes.ERROR();
                         }
                     case "RPC_deleteResource":
@@ -105,10 +99,12 @@ public abstract class BaseDataStore extends RPCObject implements DataStore, Runn
                             logger.error("Failed to list resources", error);
                             return ResponseBytes.ERROR();
                         }
-                    case "RPC_requestHeartbeat":
+                    case "RPC_reportHealth":
                         try {
-                            return null;
+                            logger.info("HeathReport requested");
+                            return HealthReport.toByteArray(reportHealth());
                         } catch (Exception error){
+                            logger.error("Failed to generage health report", error);
                             return null;
                         }
                     default:
@@ -117,33 +113,13 @@ public abstract class BaseDataStore extends RPCObject implements DataStore, Runn
                 }
             }
         });
-        new Thread(amqpServer).start();
+        new Thread(this).start();
     }
-    public abstract void connect();
+
     @Override
     public void run() {
         this.connect();
-        logger.info("Creating aggregator client for: " + dsAggregator);
-        try {
-            aggregatorClient = new AggregatorClient(dsAggregator);
-            logger.info("Connected to aggregator, registering resources...");
-            Iterable<Resource> resources = this.listResources(false);
-            for (Resource resource : resources) {
-                logger.info("Registering: " + resource.getUUID());
-                aggregatorClient.registerResource(getId(), resource);
-            }
-        } catch(Exception error) {
-            logger.error("Failed to connect to aggregator: " + dsAggregator, error);
-        }
     }
 
-    private String bytesToString(byte[] inBytes){
-        try{
-            String resourceId = new String(inBytes, "UTF-8");
-            return resourceId;
-        }catch(UnsupportedEncodingException error) {
-            logger.error(String.format("Failed to get Resource due to unsupported encoding"),error);
-            return null;
-        }
-    }
+    public abstract void connect();
 }

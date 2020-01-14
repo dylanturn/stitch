@@ -9,6 +9,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import stitch.aggregator.AggregatorClient;
+import stitch.amqp.rpc.RPCStats;
 import stitch.util.Resource;
 
 import java.io.File;
@@ -88,6 +89,10 @@ class StitchCLI implements Callable<Integer> {
                     getAndPrint(resourceId);
                     break;
 
+                case "stats":
+                    statsAndPrint();
+                    break;
+
                 case "new":
                     createResource(resourceType, resourceData);
                     break;
@@ -112,6 +117,14 @@ class StitchCLI implements Callable<Integer> {
         System.out.println("Size:      " + resource.getMeta("data_size"));
         System.out.println("Timestamp: " + resource.getMeta("created"));
         System.out.println("Data:      " + new String(resource.getData()));
+    }
+
+    private void statsAndPrint(){
+        System.out.println("STATS?!");
+        RPCStats rpcStats = aggregatorClient.getRpcStats();
+        System.out.println("Total Calls:   " + rpcStats.getTotalCalls());
+        System.out.println("Success Calls: " + rpcStats.getTotalCalls());
+        System.out.println("Failed Calls:  " + rpcStats.getTotalCalls());
     }
 
     private void createResource(String resourceType, String resourceData){

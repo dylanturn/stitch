@@ -7,19 +7,20 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-public class HealthReport {
+public class HealthReport implements Serializable {
 
-    private static final long serialVersionUID = 1234L;
+    private static final long serialVersionUID = 5470L;
+
     private static final Logger logger = Logger.getLogger(HealthReport.class);
 
     private boolean isNodeHealthy;
     private long lastHealthReportTime;
-    private ArrayList<Alarm> NodeAlarms = new ArrayList<>();
+    private ArrayList<HealthAlarm> nodeHealthAlarms = new ArrayList<>();
 
-    public HealthReport(boolean nodeHealthy, List<Alarm> alarms){
+    public HealthReport(boolean nodeHealthy, List<HealthAlarm> healthAlarms){
         this.isNodeHealthy = nodeHealthy;
         this.lastHealthReportTime = Instant.now().toEpochMilli();
-        this.addAlarms(alarms);
+        this.addAlarms(healthAlarms);
     }
 
     public HealthReport(boolean nodeHealthy){
@@ -27,12 +28,12 @@ public class HealthReport {
         this.lastHealthReportTime = Instant.now().toEpochMilli();
     }
 
-    public void addAlarms(List<Alarm> alarms){
-        this.NodeAlarms.addAll(alarms);
+    public void addAlarms(List<HealthAlarm> healthAlarms){
+        this.nodeHealthAlarms.addAll(healthAlarms);
     }
 
-    public List<Alarm> getAlarms(){
-        return this.NodeAlarms;
+    public List<HealthAlarm> getAlarms(){
+        return this.nodeHealthAlarms;
     }
 
     public long getLastHealthReportTime(){
@@ -58,10 +59,5 @@ public class HealthReport {
         objectOutputStream.close();
         return byteArrayOutputStream.toByteArray();
     }
-
-    public class Alarm {
-
-    }
-
 
 }

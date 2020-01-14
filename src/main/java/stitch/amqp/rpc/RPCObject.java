@@ -1,14 +1,20 @@
 package stitch.amqp.rpc;
 
-public class RPCObject {
+import org.apache.commons.collections4.queue.CircularFifoQueue;
+import org.apache.log4j.Logger;
+import stitch.util.HealthReport;
+
+import java.util.Timer;
+import java.util.TimerTask;
+
+public abstract class RPCObject {
+
+    static final Logger logger = Logger.getLogger(RPCObject.class);
+
     private RPCPrefix prefix;
     private String id;
     private int callRecordQueueLength = 100;
     private RPCStats rpcStats;
-
-    public RPCObject(String prefix, String id){
-        this(RPCPrefix.valueOf(prefix), id);
-    }
 
     public RPCObject(RPCPrefix prefix, String id){
         this.prefix = prefix;
@@ -29,23 +35,13 @@ public class RPCObject {
         return String.format("%s_%s", this.getPrefixString(), this.getId());
     }
 
-    public enum RPCPrefix {
-        DATASTORE ("datastore"),
-        AGGREGATOR ("aggregator");
-
-        private final String name;
-        private RPCPrefix(String s) { name = s; }
-        public boolean equalsName(String otherName) { return name.equals(otherName); }
-        public String toString() { return this.name; }
+    // Is this ok?
+    public RPCRecord startRPC(String caller, String method){
+        return new RPCRecord(caller, method, rpcStats);
     }
 
-    // TODO: Stop using ResponseBytes.java ans start using this instead.
-    public enum RPCResponseCode {
-        OK (50),
-        EMPTY (60),
-        ERROR (70);
-        private final int value;
-        private RPCResponseCode(int i) { value = i; }
-        public int toInteger() { return this.value; }
+    public RPCStats getRpcStats() {
+        return rpcStats;
     }
+
 }

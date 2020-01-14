@@ -1,22 +1,42 @@
 package stitch.aggregator;
 
 import org.apache.log4j.Logger;
-import stitch.amqp.BasicAMQPClient;
-import stitch.amqp.rpc.RPCObject;
+import stitch.amqp.AMQPClient;
+import stitch.amqp.rpc.RPCPrefix;
+import stitch.util.HealthReport;
 import stitch.util.Resource;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
 
-public class AggregatorClient extends RPCObject implements Aggregator {
+public class AggregatorClient extends AMQPClient implements Aggregator {
 
     static final Logger logger = Logger.getLogger(AggregatorClient.class);
-    private BasicAMQPClient amqpClient;
 
     public AggregatorClient(String id) throws Exception {
         super(RPCPrefix.AGGREGATOR, id);
-        amqpClient = new BasicAMQPClient(getPrefixString(), getId());
+    }
+
+    @Override
+    public HealthReport reportHealth() {
+        try {
+            return HealthReport.fromByteArray(call(getRouteKey(), "requestHeartbeat", ""));
+        } catch(InterruptedException error){
+            logger.error("Interrupted while getting HealthReport from byte array?", error);
+        } catch(IOException error){
+            logger.error("IO Error while getting HealthReport from byte array", error);
+        } catch (ClassNotFoundException error){
+            logger.error("Failed to find the HealthReport class", error);
+        }
+        return null;
+    }
+
+    @Override
+    public ArrayList<String> listDataStores() {
+
+        return null;
     }
 
     @Override
@@ -27,7 +47,7 @@ public class AggregatorClient extends RPCObject implements Aggregator {
     @Override
     public void updateResource(Resource resource) {
         try {
-            amqpClient.call(getRouteKey(), "updateResource", Resource.toByteArray(resource));
+            call(getRouteKey(), "updateResource", Resource.toByteArray(resource));
         } catch(Exception error){
             logger.error("Failed to update the resource: " + resource.getUUID(), error);
         }
@@ -36,7 +56,7 @@ public class AggregatorClient extends RPCObject implements Aggregator {
     @Override
     public Resource getResource(String resourceId) {
         try {
-            return Resource.fromByteArray(amqpClient.call(getRouteKey(), "getResource", resourceId));
+            return Resource.fromByteArray(call(getRouteKey(), "getResource", resourceId));
         } catch(Exception error){}
         return null;
     }
@@ -44,7 +64,7 @@ public class AggregatorClient extends RPCObject implements Aggregator {
     @Override
     public void deleteResource(String resourceId) {
         try {
-            amqpClient.call(getRouteKey(), "deleteResource", resourceId.getBytes());
+            call(getRouteKey(), "deleteResource", resourceId.getBytes());
         } catch(Exception error){
             logger.error("Failed to delete resources!", error);
         }
@@ -53,7 +73,7 @@ public class AggregatorClient extends RPCObject implements Aggregator {
     @Override
     public ArrayList<Resource> findResources(String filter) {
         try {
-            byte[] objectBytes = amqpClient.call(getRouteKey(), "findResources", filter);
+            byte[] objectBytes = call(getRouteKey(), "findResources", filter);
             ByteArrayInputStream bis = new ByteArrayInputStream(objectBytes);
             ObjectInputStream ois = new ObjectInputStream(bis);
             return (ArrayList<Resource>)ois.readObject();
@@ -67,7 +87,7 @@ public class AggregatorClient extends RPCObject implements Aggregator {
     @Override
     public ArrayList<Resource> listResources() {
         try {
-            byte[] objectBytes = amqpClient.call(getRouteKey(), "listResources", "");
+            byte[] objectBytes = call(getRouteKey(), "listResources", "");
             ByteArrayInputStream bis = new ByteArrayInputStream(objectBytes);
             ObjectInputStream ois = new ObjectInputStream(bis);
             return (ArrayList<Resource>)ois.readObject();
@@ -83,7 +103,7 @@ public class AggregatorClient extends RPCObject implements Aggregator {
             logger.info(String.format("Registering resource: %s", resource.getUUID()));
             logger.info(String.format("Datastore Id:         %s", datastoreId));
             logger.info(String.format("Route Key:            %s", getRouteKey()));
-            amqpClient.call(getRouteKey(), "registerResource", resource);
+            call(getRouteKey(), "registerResource", resource);
         } catch(Exception error){
             logger.error("Failed to register resource!", error);
         }

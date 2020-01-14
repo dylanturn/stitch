@@ -1,13 +1,17 @@
 package stitch.util;
 
-public class Alarm {
+import java.io.Serializable;
+
+public class HealthAlarm implements Serializable {
+
+    private static final long serialVersionUID = 6894L;
 
     private String subjectId;
     private AlarmSeverity severity;
     private String alarmName;
     private String alarmDescription;
 
-    public Alarm(String subjectId, AlarmSeverity severity, String alarmName, String alarmDescription) {
+    public HealthAlarm(String subjectId, AlarmSeverity severity, String alarmName, String alarmDescription) {
         this.subjectId = subjectId;
         this.severity = severity;
         this.alarmName = alarmName;

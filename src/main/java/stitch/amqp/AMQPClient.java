@@ -1,22 +1,31 @@
 package stitch.amqp;
 
 import com.rabbitmq.client.AMQP;
+import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.log4j.Logger;
+import stitch.amqp.rpc.RPCPrefix;
+import stitch.util.HealthReport;
 import stitch.util.Resource;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-public class BasicAMQPClient extends BaseAMQPObject {
+public abstract class AMQPClient extends AMQPObject {
 
-    static final Logger logger = Logger.getLogger(BasicAMQPClient.class);
+    static final Logger logger = Logger.getLogger(AMQPClient.class);
 
-    public BasicAMQPClient(String prefix, String id) {
+    private Timer healthReportTimer;
+    private int initialDelay = 5000;
+    private int timerPeriod = 5000;
+    private int healthReportQueueLength = 100;
+    private CircularFifoQueue<HealthReport> healthReportQueue;
+
+    public AMQPClient(RPCPrefix prefix, String id) {
         super(prefix, id);
+        this.healthReportQueue = new CircularFifoQueue<>(healthReportQueueLength);
+        startTimer();
     }
 
     public byte[] call(String queue, String methodName, Resource resource) throws IOException, InterruptedException {
@@ -38,7 +47,7 @@ public class BasicAMQPClient extends BaseAMQPObject {
         String replyQueueName = getChannel().queueDeclare().getQueue();
 
         Map<String, Object> methodHeaders = new HashMap<>();
-        methodHeaders.put("caller_prefix", this.getPrefix());
+        methodHeaders.put("caller_prefix", this.getPrefix().toString());
         methodHeaders.put("caller_id", this.getId());
         if(extraHeaders != null) {
             methodHeaders.putAll(extraHeaders);
@@ -77,5 +86,35 @@ public class BasicAMQPClient extends BaseAMQPObject {
         return result;
     }
 
+    private void startTimer(){
+        healthReportTimer = new Timer();
+        TimerTask task = new CheckHealth(this);
+        healthReportTimer.schedule(task, initialDelay, timerPeriod);
+    }
+
+    private class CheckHealth extends TimerTask
+    {
+
+        private AMQPClient amqpClient;
+
+        public CheckHealth(AMQPClient amqpClient){
+            this.amqpClient = amqpClient;
+        }
+
+        public void run()
+        {
+            try {
+                logger.info("Requesting health report.");
+                amqpClient.healthReportQueue.add(amqpClient.reportHealth());
+                //healthReportQueue.add(reportHealth());
+                logger.info("Received health report.");
+                logger.info(String.format("Node Health:", reportHealth().getIsNodeHealthy()));
+            } catch (Exception error) {
+                logger.error("Failed to get heartbeat", error);
+            }
+        }
+    }
+
+    public abstract HealthReport reportHealth() throws Exception;
 
 }

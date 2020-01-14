@@ -10,5 +10,4 @@ public interface DataStore {
     boolean deleteResource(String resourceId) throws Exception;
     Iterable<Resource> listResources();
     Iterable<Resource> listResources(boolean includeData);
-    HealthReport requestHeartbeat() throws Exception;
 }

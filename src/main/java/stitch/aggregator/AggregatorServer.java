@@ -4,10 +4,12 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.LongString;
 import org.apache.log4j.Logger;
 import org.bson.Document;
-import stitch.amqp.BaseAMQPHandler;
-import stitch.amqp.BasicAMQPServer;
+import stitch.amqp.AMQPHandler;
+import stitch.amqp.AMQPServer;
+import stitch.amqp.rpc.RPCPrefix;
 import stitch.datastore.DataStoreClient;
 import stitch.amqp.rpc.RPCObject;
+import stitch.util.HealthReport;
 import stitch.util.Resource;
 import stitch.util.ResponseBytes;
 
@@ -17,15 +19,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class BaseAggregator extends RPCObject implements Aggregator, Runnable {
+public abstract class AggregatorServer extends AMQPServer implements Aggregator, Runnable {
 
-    static final Logger logger = Logger.getLogger(BaseAggregator.class);
+    static final Logger logger = Logger.getLogger(AggregatorServer.class);
 
     protected Document aggregatorArgs;
     protected HashMap<String, DataStoreClient> providerClients = new HashMap<>();
-    private BasicAMQPServer amqpServer;
 
-    public BaseAggregator(Document aggregatorArgs, Iterable<Document> providers) throws Exception {
+    public AggregatorServer(Document aggregatorArgs, Iterable<Document> providers) throws Exception {
         super(RPCPrefix.AGGREGATOR, aggregatorArgs.getString("uuid"));
         this.aggregatorArgs = aggregatorArgs;
 
@@ -34,12 +35,18 @@ public abstract class BaseAggregator extends RPCObject implements Aggregator, Ru
             providerClients.put(providerUUID, new DataStoreClient(providerUUID));
         }
 
-        amqpServer = new BasicAMQPServer(getPrefixString(), getId());
-        amqpServer.setHandler(new BaseAMQPHandler(amqpServer) {
+        setHandler(new AMQPHandler(this) {
             @Override
             protected byte[] routeRPC(AMQP.BasicProperties messageProperties, byte[] messageBytes) {
 
                 switch (messageProperties.getType()) {
+                    case "RPC_listDataStores":
+                        try{
+                            return null;
+                        } catch(Exception error){
+                            logger.error("Failed to list datastores.", error);
+                            return ResponseBytes.ERROR();
+                        }
                     case "RPC_createResource":
                         try {
                             Resource resource = Resource.fromByteArray(messageBytes);
@@ -143,7 +150,18 @@ public abstract class BaseAggregator extends RPCObject implements Aggregator, Ru
 
             }
         });
-        new Thread(amqpServer).start();
+        new Thread(this).start();
+    }
+
+    private void registerResources(){
+        logger.info("Registering datastore resources!");
+        for(Map.Entry<String, DataStoreClient> dataStoreClient : providerClients.entrySet()){
+            logger.info("Registering datastore resources.");
+            ArrayList<Resource> resourceArray = dataStoreClient.getValue().listResources();
+            for(Resource resource : resourceArray) {
+                this.registerResource(dataStoreClient.getKey(), resource);
+            }
+        }
     }
 
     @Override
@@ -153,13 +171,4 @@ public abstract class BaseAggregator extends RPCObject implements Aggregator, Ru
     }
 
     public abstract void connect();
-
-    private void registerResources(){
-        for(Map.Entry<String, DataStoreClient> dataStoreClient : providerClients.entrySet()){
-            ArrayList<Resource> resourceArray = dataStoreClient.getValue().listResources();
-            for(Resource resource : resourceArray) {
-                this.registerResource(dataStoreClient.getKey(), resource);
-            }
-        }
-    }
 }

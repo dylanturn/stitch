@@ -10,8 +10,8 @@ import com.mongodb.client.model.Filters;
 import org.apache.log4j.Logger;
 import org.bson.Document;
 import org.slf4j.LoggerFactory;
-import stitch.aggregator.BaseAggregator;
-import stitch.aggregator.RedisAggregator;
+import stitch.aggregator.AggregatorServer;
+import stitch.aggregator.RedisAggregatorServer;
 import stitch.aggregator.Aggregator;
 import stitch.util.properties.MongoPropertyStore;
 import stitch.util.properties.PropertyStore;
@@ -57,7 +57,7 @@ public class AggregatorMain {
 
         // Create and start an instance of each aggregator.
         for(Document document : aggregators){
-            BaseAggregator aggregator = new RedisAggregator(document, providers);
+            AggregatorServer aggregator = new RedisAggregatorServer(document, providers);
             Thread aggregatorThread = new Thread(aggregator);
             aggregatorThreads.put(document.getString("uuid"), aggregatorThread);
             aggregatorHash.put(document.getString("uuid"), aggregator);

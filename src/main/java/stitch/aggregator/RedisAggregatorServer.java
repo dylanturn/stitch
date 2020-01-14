@@ -7,15 +7,17 @@ import io.redisearch.Query;
 import io.redisearch.Schema;
 import org.apache.log4j.Logger;
 
+import stitch.datastore.DataStoreClient;
+import stitch.util.HealthReport;
 import stitch.util.Resource;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-public class RedisAggregator extends BaseAggregator implements Aggregator {
+public class RedisAggregatorServer extends AggregatorServer implements Aggregator {
 
-    static final Logger logger = Logger.getLogger(RedisAggregator.class);
+    static final Logger logger = Logger.getLogger(RedisAggregatorServer.class);
     private Client client;
 
     private String agClass = aggregatorArgs.getString("class");
@@ -29,7 +31,7 @@ public class RedisAggregator extends BaseAggregator implements Aggregator {
     private String agPassword = aggregatorArgs.getString("password");
     private String agIndex;
 
-    public RedisAggregator(org.bson.Document aggregatorArgs, Iterable<org.bson.Document> providerDocuments) throws Exception {
+    public RedisAggregatorServer(org.bson.Document aggregatorArgs, Iterable<org.bson.Document> providerDocuments) throws Exception {
         super(aggregatorArgs, providerDocuments);
     }
 
@@ -62,6 +64,20 @@ public class RedisAggregator extends BaseAggregator implements Aggregator {
                     .addNumericField("data_size");
             client.createIndex(schema, Client.IndexOptions.defaultOptions());
         }
+    }
+
+    @Override
+    public HealthReport reportHealth() {
+        return new HealthReport(true);
+    }
+
+    @Override
+    public ArrayList<String> listDataStores() {
+        ArrayList<String> dataStoreClientNames = new ArrayList<>();
+        for(DataStoreClient dataStoreClient : providerClients.values()){
+            dataStoreClientNames.add(dataStoreClient.getId());
+        }
+        return dataStoreClientNames;
     }
 
     @Override

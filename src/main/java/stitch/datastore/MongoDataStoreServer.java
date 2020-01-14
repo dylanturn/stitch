@@ -15,9 +15,9 @@ import java.util.*;
 import static com.mongodb.client.model.Projections.fields;
 import static com.mongodb.client.model.Projections.include;
 
-public class MongoDataStore extends BaseDataStore implements DataStore {
+public class MongoDataStoreServer extends DataStoreServer implements DataStore {
 
-    static final Logger logger = Logger.getLogger(MongoDataStore.class);
+    static final Logger logger = Logger.getLogger(MongoDataStoreServer.class);
 
     private String dsURI;
     private String dsProtocol = providerArgs.getString("protocol");
@@ -33,7 +33,7 @@ public class MongoDataStore extends BaseDataStore implements DataStore {
     private MongoDatabase mongoDatabase;
     private MongoCollection<Document> mongoCollection;
 
-    public MongoDataStore(Document providerArgs) throws Exception {
+    public MongoDataStoreServer(Document providerArgs) throws Exception {
         super(providerArgs);
     }
 
@@ -99,6 +99,12 @@ public class MongoDataStore extends BaseDataStore implements DataStore {
     }
 
     @Override
+    public HealthReport reportHealth() {
+        logger.info("Generating requested health report.");
+        return new HealthReport(true);
+    }
+
+    @Override
     public String createResource(Resource resource) {
         try {
             logger.info(String.format("Creating resource: %s", resource.getUUID()));
@@ -156,10 +162,5 @@ public class MongoDataStore extends BaseDataStore implements DataStore {
             resourceList.add(toResource(document, includeData));
         }
         return resourceList;
-    }
-
-    @Override
-    public HealthReport requestHeartbeat() throws Exception {
-        return new HealthReport(true);
     }
 }
