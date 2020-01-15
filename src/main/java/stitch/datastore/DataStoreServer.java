@@ -13,7 +13,7 @@ import java.io.ObjectOutputStream;
 
 import static stitch.util.Serializer.bytesToString;
 
-public abstract class DataStoreServer extends AMQPServer implements DataStore, Runnable {
+public abstract class DataStoreServer extends AMQPServer implements DataStore {
 
     static final Logger logger = Logger.getLogger(DataStoreServer.class);
 

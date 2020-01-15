@@ -168,4 +168,9 @@ public class RedisAggregatorServer extends AggregatorServer implements Aggregato
         SearchResult searchResult = client.search(query);
         return searchResult.docs.get(0).getString("datastoreId");
     }
+
+    @Override
+    public void shutdown() {
+        logger.info("Shutting down aggregator client...");
+    }
 }

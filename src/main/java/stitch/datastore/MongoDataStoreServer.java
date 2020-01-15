@@ -163,4 +163,9 @@ public class MongoDataStoreServer extends DataStoreServer implements DataStore {
         }
         return resourceList;
     }
+
+    @Override
+    public void shutdown() {
+        logger.info("Shutting down aggregator client...");
+    }
 }

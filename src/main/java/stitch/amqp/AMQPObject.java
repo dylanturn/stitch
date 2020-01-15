@@ -4,15 +4,23 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import org.apache.log4j.Logger;
-import stitch.amqp.rpc.RPCObject;
 import stitch.amqp.rpc.RPCPrefix;
+import stitch.amqp.rpc.RPCRecord;
+import stitch.amqp.rpc.RPCStats;
 import stitch.util.properties.MongoPropertyStore;
 import stitch.util.properties.PropertyStore;
 
 import java.net.URI;
 
-public abstract class AMQPObject extends RPCObject implements AutoCloseable {
+public abstract class AMQPObject implements Runnable, AutoCloseable {
+
     static final Logger logger = Logger.getLogger(AMQPObject.class);
+
+    private RPCPrefix prefix;
+    private String id;
+    private int callRecordQueueLength = 100;
+    private RPCStats rpcStats;
+
     protected String routeKey;
     private String amqpUsername;
     private String amqpPassword;
@@ -25,7 +33,11 @@ public abstract class AMQPObject extends RPCObject implements AutoCloseable {
     private Object monitor;
 
     public AMQPObject(RPCPrefix prefix, String id){
-        super(prefix, id);
+
+        this.prefix = prefix;
+        this.id = id;
+        this.rpcStats = new RPCStats(callRecordQueueLength);
+
         // Get the properties for the AMQP connection.
         PropertyStore propertyStore = new MongoPropertyStore();
         String secretKey = "";
@@ -51,6 +63,28 @@ public abstract class AMQPObject extends RPCObject implements AutoCloseable {
         }
     }
 
+    public RPCPrefix getPrefix(){
+        return this.prefix;
+    }
+    public String getPrefixString(){
+        return this.prefix.toString();
+    }
+    public String getId(){
+        return this.id;
+    }
+    public String getRouteKey(){
+        return String.format("%s_%s", this.getPrefixString(), this.getId());
+    }
+
+    // Is this ok?
+    public RPCRecord startRPC(String caller, String method){
+        return new RPCRecord(caller, method, rpcStats);
+    }
+
+    public RPCStats getRpcStats() {
+        return rpcStats;
+    }
+
     public String getHost(){
         return amqpHost;
     }
@@ -67,7 +101,12 @@ public abstract class AMQPObject extends RPCObject implements AutoCloseable {
     // TODO: Maybe decide if there are other things that need to happen for it to close?
     @Override
     public void close() throws Exception {
+        shutdown();
         channel.close();
         connection.close();
     }
+
+    public abstract void run();
+    public abstract void shutdown();
+
 }

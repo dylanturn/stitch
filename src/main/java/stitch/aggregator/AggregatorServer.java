@@ -8,8 +8,6 @@ import stitch.amqp.AMQPHandler;
 import stitch.amqp.AMQPServer;
 import stitch.amqp.rpc.RPCPrefix;
 import stitch.datastore.DataStoreClient;
-import stitch.amqp.rpc.RPCObject;
-import stitch.util.HealthReport;
 import stitch.util.Resource;
 import stitch.util.ResponseBytes;
 
@@ -163,6 +161,8 @@ public abstract class AggregatorServer extends AMQPServer implements Aggregator,
             }
         }
     }
+
+
 
     @Override
     public void run() {

@@ -108,4 +108,14 @@ public class AggregatorClient extends AMQPClient implements Aggregator {
             logger.error("Failed to register resource!", error);
         }
     }
+
+    @Override
+    public void run() {
+        logger.info("Started Aggregator Client...");
+    }
+
+    @Override
+    public void shutdown() {
+        logger.info("Shutting down aggregator client...");
+    }
 }

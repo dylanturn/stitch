@@ -68,4 +68,14 @@ public class DataStoreClient extends AMQPClient implements DataStore {
             return null;
         }
     }
+
+    @Override
+    public void run() {
+        logger.info("Started Aggregator Client...");
+    }
+
+    @Override
+    public void shutdown() {
+        logger.info("Shutting down aggregator client...");
+    }
 }
