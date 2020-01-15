@@ -162,13 +162,16 @@ public abstract class AggregatorServer extends AMQPServer implements Aggregator,
         }
     }
 
-
-
     @Override
     public void run() {
+        // Make sure the Aggregator has connected to the cache
         this.connect();
+        // Begin consuming from the Aggregators' queue
+        this.consumeAMQP();
+        // Request a list of resources from all the DataStores and put them in the cache.
         this.registerResources();
     }
+
 
     public abstract void connect();
 }

@@ -119,6 +119,7 @@ public abstract class DataStoreServer extends AMQPServer implements DataStore {
     @Override
     public void run() {
         this.connect();
+        this.consumeAMQP();
     }
 
     public abstract void connect();
