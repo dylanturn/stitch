@@ -88,11 +88,28 @@ public abstract class AMQPClient extends AMQPObject {
 
     private void startTimer(){
         healthReportTimer = new Timer();
-        TimerTask task = new CheckHealth(this);
+        TimerTask task = new CheckHealth();
         healthReportTimer.schedule(task, initialDelay, timerPeriod);
     }
 
     private class CheckHealth extends TimerTask
+    {
+
+        public void run()
+        {
+            try {
+                HealthReport healthReport = reportHealth();
+                logger.info("Requesting health report.");
+                healthReportQueue.add(healthReport);
+                logger.info("Received health report.");
+                logger.info(String.format("Node Health: %s", Boolean.toString(healthReport.getIsNodeHealthy())));
+            } catch (Exception error) {
+                logger.error("Failed to get heartbeat", error);
+            }
+        }
+    }
+
+    /*private class CheckHealth extends TimerTask
     {
 
         private AMQPClient amqpClient;
@@ -113,7 +130,7 @@ public abstract class AMQPClient extends AMQPObject {
                 logger.error("Failed to get heartbeat", error);
             }
         }
-    }
+    }*/
 
     public abstract HealthReport reportHealth() throws Exception;
 

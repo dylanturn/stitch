@@ -1,21 +1,23 @@
 package stitch.amqp;
 
 import com.rabbitmq.client.DeliverCallback;
-import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.log4j.Logger;
 import stitch.amqp.rpc.RPCPrefix;
 import stitch.util.HealthReport;
 
 import java.io.IOException;
+import java.time.Instant;
 
 public abstract class AMQPServer extends AMQPObject {
 
     static final Logger logger = Logger.getLogger(AMQPServer.class);
 
+    private long uptime;
     private DeliverCallback deliverCallback;
 
     public AMQPServer(RPCPrefix prefix, String id) {
         super(prefix, id);
+        uptime = Instant.now().toEpochMilli();
         logger.info("Starting up AMQP server...");
         logger.info(String.format("Prefix: %s", prefix));
         logger.info(String.format("Id:     %s", id));
