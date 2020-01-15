@@ -68,7 +68,7 @@ public class RedisAggregatorServer extends AggregatorServer implements Aggregato
 
     @Override
     public HealthReport reportHealth() {
-        return new HealthReport(true);
+        return new HealthReport(true, getId(), getNodeUptime());
     }
 
     @Override
