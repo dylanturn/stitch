@@ -62,6 +62,10 @@ public abstract class AMQPServer extends AMQPObject {
         t.start();
     }
 
+    public long getNodeUptime() {
+        return uptime;
+    }
+
     public abstract HealthReport reportHealth();
 
 }

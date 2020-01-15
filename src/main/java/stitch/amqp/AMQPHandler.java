@@ -29,13 +29,13 @@ public abstract class AMQPHandler implements DeliverCallback {
         Object monitor = amqpServer.getMonitor();
         String exchange = amqpServer.getExchange();
 
-        logger.info("RPC Request received!");
+        logger.trace("RPC Request received!");
         // Get the message headers and body.
         AMQP.BasicProperties messageProperties = delivery.getProperties();
         byte[] messageBytes = delivery.getBody();
 
         // Create the RPC record used to track the RPC performance.
-        logger.info("RPC Type: " + messageProperties.getType());
+        logger.trace("RPC Type: " + messageProperties.getType());
         LongString longCallerId = (LongString)messageProperties.getHeaders().get("caller_id");
         RPCRecord rpcRecord = amqpServer.startRPC(longCallerId.toString(), delivery.getProperties().getType());
 

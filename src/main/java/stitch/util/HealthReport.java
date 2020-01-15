@@ -13,35 +13,48 @@ public class HealthReport implements Serializable {
 
     private static final Logger logger = Logger.getLogger(HealthReport.class);
 
+    private long reportTime;
     private boolean isNodeHealthy;
-    private long lastHealthReportTime;
+    private String nodeId;
+    private long nodeUptime;
+
     private ArrayList<HealthAlarm> nodeHealthAlarms = new ArrayList<>();
 
-    public HealthReport(boolean nodeHealthy, List<HealthAlarm> healthAlarms){
+    public HealthReport(boolean nodeHealthy, String nodeId, long nodeUptime, List<HealthAlarm> healthAlarms){
+        this.reportTime = Instant.now().toEpochMilli();
         this.isNodeHealthy = nodeHealthy;
-        this.lastHealthReportTime = Instant.now().toEpochMilli();
-        this.addAlarms(healthAlarms);
-    }
-
-    public HealthReport(boolean nodeHealthy){
-        this.isNodeHealthy = nodeHealthy;
-        this.lastHealthReportTime = Instant.now().toEpochMilli();
-    }
-
-    public void addAlarms(List<HealthAlarm> healthAlarms){
+        this.nodeId = nodeId;
+        this.nodeUptime = nodeUptime;
         this.nodeHealthAlarms.addAll(healthAlarms);
     }
 
-    public List<HealthAlarm> getAlarms(){
-        return this.nodeHealthAlarms;
+    public HealthReport(boolean nodeHealthy, String nodeId, long nodeUptime){
+        this(nodeHealthy, nodeId, nodeUptime, null);
     }
 
-    public long getLastHealthReportTime(){
-        return lastHealthReportTime;
+    public long getReportTime(){
+        return reportTime;
     }
 
     public boolean getIsNodeHealthy(){
         return isNodeHealthy;
+    }
+
+    public String getNodeId() {
+        return nodeId;
+    }
+
+    public long getNodeUptime() {
+        return nodeUptime;
+    }
+
+    public List<HealthAlarm> getAlarms(){
+        return nodeHealthAlarms;
+    }
+
+    public HealthReport addAlarm(HealthAlarm healthAlarm) {
+        nodeHealthAlarms.add(healthAlarm);
+        return this;
     }
 
     public static HealthReport fromByteArray(byte[] healthStatusBytes) throws IOException, ClassNotFoundException {

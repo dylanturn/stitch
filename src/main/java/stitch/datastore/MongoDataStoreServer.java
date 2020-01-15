@@ -98,10 +98,11 @@ public class MongoDataStoreServer extends DataStoreServer implements DataStore {
         }
     }
 
+    // TODO: Actually make sure the node is healthy
     @Override
     public HealthReport reportHealth() {
-        logger.info("Generating requested health report.");
-        return new HealthReport(true);
+        logger.trace("Generating requested health report.");
+        return new HealthReport(true, getId(), getNodeUptime());
     }
 
     @Override

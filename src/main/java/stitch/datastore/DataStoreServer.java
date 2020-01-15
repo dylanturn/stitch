@@ -101,7 +101,7 @@ public abstract class DataStoreServer extends AMQPServer implements DataStore {
                         }
                     case "RPC_reportHealth":
                         try {
-                            logger.info("HeathReport requested");
+                            logger.trace("HeathReport requested");
                             return HealthReport.toByteArray(reportHealth());
                         } catch (Exception error){
                             logger.error("Failed to generage health report", error);
