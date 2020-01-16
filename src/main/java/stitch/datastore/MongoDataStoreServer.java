@@ -15,7 +15,7 @@ import java.util.*;
 import static com.mongodb.client.model.Projections.fields;
 import static com.mongodb.client.model.Projections.include;
 
-public class MongoDataStoreServer extends DataStoreServer implements DataStore {
+public class MongoDataStoreServer extends DataStoreServer {
 
     static final Logger logger = Logger.getLogger(MongoDataStoreServer.class);
 

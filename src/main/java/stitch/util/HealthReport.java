@@ -25,7 +25,8 @@ public class HealthReport implements Serializable {
         this.isNodeHealthy = nodeHealthy;
         this.nodeId = nodeId;
         this.nodeUptime = nodeUptime;
-        this.nodeHealthAlarms.addAll(healthAlarms);
+        if(healthAlarms != null)
+            this.nodeHealthAlarms.addAll(healthAlarms);
     }
 
     public HealthReport(boolean nodeHealthy, String nodeId, long nodeUptime){
