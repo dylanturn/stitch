@@ -1,12 +1,13 @@
 package stitch.aggregator;
 
+import stitch.amqp.HealthReport;
 import stitch.util.Resource;
 
 import java.util.ArrayList;
 
 public interface Aggregator {
 
-    ArrayList<String> listDataStores();
+    ArrayList<HealthReport> listDataStores();
 
     String createResource(Resource resource);
     void updateResource(Resource resource);

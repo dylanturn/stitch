@@ -19,12 +19,22 @@ public abstract class AMQPClient extends AMQPObject {
     private int initialDelay = 5000;
     private int timerPeriod = 5000;
     private int healthReportQueueLength = 100;
+
+    private HealthReport lastHealthReport;
     private CircularFifoQueue<HealthReport> healthReportQueue;
 
     public AMQPClient(RPCPrefix prefix, String id) {
         super(prefix, id);
         this.healthReportQueue = new CircularFifoQueue<>(healthReportQueueLength);
         startTimer();
+    }
+
+    public HealthReport getLastHealthReport(){
+        return lastHealthReport;
+    }
+
+    public Iterator<HealthReport> getAllHealthReports(){
+        return healthReportQueue.iterator();
     }
 
     public byte[] call(String queue, String methodName, Resource resource) throws IOException, InterruptedException {
@@ -98,16 +108,19 @@ public abstract class AMQPClient extends AMQPObject {
         {
             try {
                 HealthReport healthReport = reportHealth();
-                logger.info("Requesting health report.");
+                logger.trace("Requesting health report.");
+                lastHealthReport = healthReport;
                 healthReportQueue.add(healthReport);
-                logger.info("Received health report.");
-                logger.info(String.format("Node Health: %s", Boolean.toString(healthReport.getIsNodeHealthy())));
+                logger.trace("Received health report.");
+                logger.trace(String.format("Node Health: %s", Boolean.toString(healthReport.getIsNodeHealthy())));
             } catch (Exception error) {
                 logger.error("Failed to get heartbeat", error);
             }
         }
     }
 
-    public abstract HealthReport reportHealth() throws Exception;
+    private HealthReport reportHealth() throws Exception {
+        return HealthReport.fromByteArray(call(getRouteKey(), "reportHealth", ""));
+    }
 
 }

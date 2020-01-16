@@ -20,11 +20,6 @@ public class DataStoreClient extends AMQPClient implements DataStore {
     }
 
     @Override
-    public HealthReport reportHealth() throws Exception {
-        return HealthReport.fromByteArray(call(getRouteKey(), "reportHealth", ""));
-    }
-
-    @Override
     public String createResource(Resource resource) throws Exception  {
         return new String(call(getRouteKey(), "createResource", resource), "UTF-8");
     }

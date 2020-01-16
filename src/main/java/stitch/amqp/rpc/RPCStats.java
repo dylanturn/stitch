@@ -6,7 +6,7 @@ import org.javatuples.Triplet;
 import java.io.*;
 import java.util.Iterator;
 
-public class RPCStats {
+public class RPCStats implements Serializable {
 
     private static final long serialVersionUID = 1986L;
 

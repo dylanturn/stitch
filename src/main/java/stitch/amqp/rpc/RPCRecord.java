@@ -1,8 +1,11 @@
 package stitch.amqp.rpc;
 
+import java.io.Serializable;
 import java.time.Instant;
 
-public class RPCRecord {
+public class RPCRecord implements Serializable {
+
+    private static final long serialVersionUID = 1721L;
 
     private String caller;
     private String method;

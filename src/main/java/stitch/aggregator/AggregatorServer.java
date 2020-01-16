@@ -6,6 +6,7 @@ import org.apache.log4j.Logger;
 import org.bson.Document;
 import stitch.amqp.AMQPHandler;
 import stitch.amqp.AMQPServer;
+import stitch.amqp.HealthReport;
 import stitch.amqp.rpc.RPCPrefix;
 import stitch.datastore.DataStoreClient;
 import stitch.util.Resource;
@@ -159,12 +160,12 @@ public abstract class AggregatorServer extends AMQPServer implements Aggregator,
     }
 
     @Override
-    public ArrayList<String> listDataStores() {
-        ArrayList<String> dataStoreClientNames = new ArrayList<>();
+    public ArrayList<HealthReport> listDataStores() {
+        ArrayList<HealthReport> dataStoreHealthReports = new ArrayList<>();
         for(DataStoreClient dataStoreClient : providerClients.values()){
-            dataStoreClientNames.add(dataStoreClient.getId());
+            dataStoreHealthReports.add(dataStoreClient.getLastHealthReport());
         }
-        return dataStoreClientNames;
+        return dataStoreHealthReports;
     }
 
     private void registerResources(){

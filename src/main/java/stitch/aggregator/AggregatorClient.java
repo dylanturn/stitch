@@ -21,23 +21,9 @@ public class AggregatorClient extends AMQPClient implements Aggregator {
     }
 
     @Override
-    public HealthReport reportHealth() {
+    public ArrayList<HealthReport> listDataStores() {
         try {
-            return HealthReport.fromByteArray(call(getRouteKey(), "requestHeartbeat", ""));
-        } catch(InterruptedException error){
-            logger.error("Interrupted while getting HealthReport from byte array?", error);
-        } catch(IOException error){
-            logger.error("IO Error while getting HealthReport from byte array", error);
-        } catch (ClassNotFoundException error){
-            logger.error("Failed to find the HealthReport class", error);
-        }
-        return null;
-    }
-
-    @Override
-    public ArrayList<String> listDataStores() {
-        try {
-            return (ArrayList<String>)Serializer.bytesToObject(call(getRouteKey(), "listDataStores", ""));
+            return (ArrayList<HealthReport>)Serializer.bytesToObject(call(getRouteKey(), "listDataStores", ""));
         } catch(Exception error){
             logger.error("Failed to list resources!", error);
             return null;

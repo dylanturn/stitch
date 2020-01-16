@@ -9,6 +9,8 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import stitch.aggregator.AggregatorClient;
+import stitch.amqp.HealthAlarm;
+import stitch.amqp.HealthReport;
 import stitch.amqp.rpc.RPCStats;
 import stitch.util.Resource;
 
@@ -135,33 +137,32 @@ class StitchCLI implements Callable<Integer> {
 
     private void listAndPrintDataStores(){
         logger.trace("Execute list and print.");
-        ArrayList<String> dataStoreArrayList = aggregatorClient.listDataStores();
-        printDataStoreTable(dataStoreArrayList);
+        ArrayList<HealthReport> dataStoreHealthReports = aggregatorClient.listDataStores();
+        printDataStoreTable(dataStoreHealthReports);
     }
 
-    private void printDataStoreTable(ArrayList<String> dataStoreArrayList){
-        for(String datastore : dataStoreArrayList){
-            System.out.println(datastore);
+    private void printDataStoreTable(ArrayList<HealthReport> dataStoreHealthReports){
+        for(HealthReport healthReport : dataStoreHealthReports){
+            System.out.println(healthReport);
         }
-        /*if(!quiet) {
-            System.out.println("DataStore Count: " + dataStoreArrayList.size());
-            if(dataStoreArrayList.size() > 0) {
-                String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-20s |", "Resource ID", "DataStore ID", "Type", "Size", "Timestamp");
+        if(!quiet) {
+            System.out.println("DataStore Count: " + dataStoreHealthReports.size());
+            if(dataStoreHealthReports.size() > 0) {
+                String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-20s |", "Aggregator ID", "DataStore ID", "Type", "Class", "Uptime");
                 System.out.println(tableHeader);
             }
         }
-        for(Resource resource : resourceArrayList) {
-            String uuid = resource.getUUID();
-            String datastoreId = (String)resource.getMeta("datastoreId");
-            String dataType = (String)resource.getMeta("data_type");
-            int dataSize = resource.getMetaInt("data_size");
-            long created = resource.getMetaLong("created");
-            String tableBody = uuid;
+        for(HealthReport healthReport : dataStoreHealthReports) {
+            String storeId = healthReport.getNodeId();
+            long storeUptime = (long)healthReport.getNodeUptime();
+            String storeType = (String)healthReport.getExtra().get("type");
+            String storeClass = (String)healthReport.getExtra().get("class");
+            String tableBody = storeId;
             if(!quiet) {
-                tableBody = String.format("| %36s | %36s | %10s | %10s | %20s |", uuid, datastoreId, dataType, dataSize, created);
+                tableBody = String.format("| %36s | %36s | %10s | %10s | %20s |", aggregatorId, storeId, storeType, storeClass, storeUptime);
             }
             System.out.println(tableBody);
-        }*/
+        }
     }
 
     /*
