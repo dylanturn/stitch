@@ -7,7 +7,7 @@ import com.mongodb.client.MongoDatabase;
 import org.apache.log4j.Logger;
 import org.bson.Document;
 import org.bson.types.Binary;
-import stitch.util.HealthReport;
+import stitch.amqp.HealthReport;
 import stitch.util.Resource;
 
 import java.util.*;
@@ -98,12 +98,9 @@ public class MongoDataStoreServer extends DataStoreServer {
         }
     }
 
-    // TODO: Actually make sure the node is healthy
+    // TODO: Make sure the node is actually healthy
     @Override
-    public HealthReport reportHealth() {
-        logger.trace("Generating requested health report.");
-        return new HealthReport(true, getId(), getNodeUptime());
-    }
+    public void reportHealth(HealthReport healthReport) {}
 
     @Override
     public String createResource(Resource resource) {

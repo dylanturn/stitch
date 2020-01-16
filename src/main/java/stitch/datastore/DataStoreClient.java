@@ -3,7 +3,7 @@ package stitch.datastore;
 import org.apache.log4j.Logger;
 import stitch.amqp.AMQPClient;
 import stitch.amqp.rpc.RPCPrefix;
-import stitch.util.HealthReport;
+import stitch.amqp.HealthReport;
 import stitch.util.Resource;
 
 import java.io.ByteArrayInputStream;

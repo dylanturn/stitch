@@ -1,25 +1,42 @@
 package stitch.util;
 
 import org.apache.log4j.Logger;
+import stitch.datastore.DataStoreServer;
 
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 
 public class Serializer {
 
-    public static String bytesToString(byte[] inBytes){
+    static final Logger logger = Logger.getLogger(DataStoreServer.class);
 
-        Logger logger = Logger.getLogger(getCallerCallerClassName());
-
-        try{
-            String resourceId = new String(inBytes, "UTF-8");
-            return resourceId;
-        }catch(UnsupportedEncodingException error) {
-            logger.error(String.format("Failed to get Resource due to unsupported encoding"),error);
-            return null;
+    public static byte[] objectToBytes(Object obj) throws IOException {
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+            oos.writeObject(obj);
+            oos.flush();
+            return bos.toByteArray();
         }
     }
 
-    private static String getCallerCallerClassName() {
+    public static Object  bytesToObject(byte[] objBytes) throws IOException, ClassNotFoundException {
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(objBytes);
+             ObjectInputStream ois = new ObjectInputStream(bis)){
+            return ois.readObject();
+        }
+    }
+
+    public static String bytesToString(byte[] inBytes) {
+        try{
+            String resourceId = new String(inBytes, "UTF-8");
+            return resourceId;
+
+        }catch(UnsupportedEncodingException error) {
+            logger.error(String.format("Failed to get Resource due to unsupported encoding"),error);
+        }
+        return null;
+    }
+
+    private static String getCallerClassName() {
         StackTraceElement[] stElements = Thread.currentThread().getStackTrace();
         String callerClassName = null;
         for (int i=1; i<stElements.length; i++) {

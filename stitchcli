@@ -1,0 +1,5 @@
+#! /bin/bash
+
+STITCH_HOME='/Users/dylanturnbull/Documents/projects/stitch'
+STITCH_AGGREGATOR=7d1247d51e1545ed898727efd105efc2
+java -cp "${STITCH_HOME}/target/*:${STITCH_HOME}/target/libs/*" stitch.StitchCLI  -a ${STITCH_AGGREGATOR} $@

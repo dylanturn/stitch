@@ -1,6 +1,5 @@
 package stitch.datastore;
 
-import stitch.util.HealthReport;
 import stitch.util.Resource;
 
 public interface DataStore {

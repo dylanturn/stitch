@@ -10,6 +10,7 @@ import stitch.amqp.rpc.RPCPrefix;
 import stitch.datastore.DataStoreClient;
 import stitch.util.Resource;
 import stitch.util.ResponseBytes;
+import stitch.util.Serializer;
 
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
@@ -40,7 +41,13 @@ public abstract class AggregatorServer extends AMQPServer implements Aggregator,
                 switch (messageProperties.getType()) {
                     case "RPC_listDataStores":
                         try{
-                            return null;
+                            byte[] dataStoreBytes= Serializer.objectToBytes(listDataStores());
+                            if(dataStoreBytes == null){
+                                return ResponseBytes.NULL();
+                            } else {
+                                return dataStoreBytes;
+                            }
+
                         } catch(Exception error){
                             logger.error("Failed to list datastores.", error);
                             return ResponseBytes.ERROR();
@@ -149,6 +156,15 @@ public abstract class AggregatorServer extends AMQPServer implements Aggregator,
             }
         });
         new Thread(this).start();
+    }
+
+    @Override
+    public ArrayList<String> listDataStores() {
+        ArrayList<String> dataStoreClientNames = new ArrayList<>();
+        for(DataStoreClient dataStoreClient : providerClients.values()){
+            dataStoreClientNames.add(dataStoreClient.getId());
+        }
+        return dataStoreClientNames;
     }
 
     private void registerResources(){

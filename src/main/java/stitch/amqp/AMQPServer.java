@@ -3,21 +3,25 @@ package stitch.amqp;
 import com.rabbitmq.client.DeliverCallback;
 import org.apache.log4j.Logger;
 import stitch.amqp.rpc.RPCPrefix;
-import stitch.util.HealthReport;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 public abstract class AMQPServer extends AMQPObject {
 
     static final Logger logger = Logger.getLogger(AMQPServer.class);
 
-    private long uptime;
+    private HashMap<String, Object> metaData = new HashMap<>();
+    private ArrayList<HealthAlarm> alarms = new ArrayList<>();
     private DeliverCallback deliverCallback;
 
     public AMQPServer(RPCPrefix prefix, String id) {
         super(prefix, id);
-        uptime = Instant.now().toEpochMilli();
+        metaData.put("prefix", prefix);
+        metaData.put("uuid", id);
+        metaData.put("start_time", Instant.now().toEpochMilli());
         logger.info("Starting up AMQP server...");
         logger.info(String.format("Prefix: %s", prefix));
         logger.info(String.format("Id:     %s", id));
@@ -30,7 +34,10 @@ public abstract class AMQPServer extends AMQPObject {
         } catch (Exception error) {
             logger.error("Failed to start the AMQP listener!", error);
         }
+    }
 
+    public long getNodeUptime() {
+        return Instant.now().toEpochMilli() - getMetaLong("start_time");
     }
 
     public void setHandler(DeliverCallback deliverCallback){
@@ -62,10 +69,62 @@ public abstract class AMQPServer extends AMQPObject {
         t.start();
     }
 
-    public long getNodeUptime() {
-        return uptime;
+    public HealthReport reportInternalHealth(){
+        logger.trace("Generating requested health report.");
+        // Create the new health report.
+        HealthReport healthReport = new HealthReport(true, getId(), getNodeUptime());
+        // Give the implementing class a chance to do stuff with the report.
+        reportHealth(healthReport);
+        // Return the report.
+        return healthReport;
     }
 
-    public abstract HealthReport reportHealth();
+    /* EXTRA DATA */
+    public Object getMetaData(String key) {
+        return this.metaData.get(key);
+    }
+
+    public String getMetaString(String key) {
+        return (String)this.metaData.get(key);
+    }
+
+    public int getMetaInt(String key) {
+        return (int)this.metaData.get(key);
+    }
+
+    public long getMetaLong(String key) {
+        return (long)this.metaData.get(key);
+    }
+
+    public boolean getMetaBoolean(String key) {
+        return (boolean)this.metaData.get(key);
+    }
+
+    public HashMap<String, Object> getAllMetaData() {
+        return this.metaData;
+    }
+
+    public void addMetaData(String key, Object value){
+        this.metaData.put(key, value);
+    }
+
+    public void addAllMetaData(HashMap<String, Object> allExtra){
+        this.metaData.putAll(allExtra);
+    }
+
+    /* HEALTH ALARMS */
+    public ArrayList<HealthAlarm> getAlarms() {
+        return this.alarms;
+    }
+
+    public void addAlarm(HealthAlarm alarm){
+        this.alarms.add(alarm);
+    }
+
+    public void addAllAlarms(ArrayList<HealthAlarm> alarms){
+        this.alarms.addAll(alarms);
+    }
+
+    public abstract void reportHealth(HealthReport healthReport);
 
 }

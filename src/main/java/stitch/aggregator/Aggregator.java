@@ -1,6 +1,5 @@
 package stitch.aggregator;
 
-import stitch.util.HealthReport;
 import stitch.util.Resource;
 
 import java.util.ArrayList;

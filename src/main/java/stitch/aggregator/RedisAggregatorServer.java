@@ -7,8 +7,7 @@ import io.redisearch.Query;
 import io.redisearch.Schema;
 import org.apache.log4j.Logger;
 
-import stitch.datastore.DataStoreClient;
-import stitch.util.HealthReport;
+import stitch.amqp.HealthReport;
 import stitch.util.Resource;
 
 import java.util.ArrayList;
@@ -67,18 +66,7 @@ public class RedisAggregatorServer extends AggregatorServer implements Aggregato
     }
 
     @Override
-    public HealthReport reportHealth() {
-        return new HealthReport(true, getId(), getNodeUptime());
-    }
-
-    @Override
-    public ArrayList<String> listDataStores() {
-        ArrayList<String> dataStoreClientNames = new ArrayList<>();
-        for(DataStoreClient dataStoreClient : providerClients.values()){
-            dataStoreClientNames.add(dataStoreClient.getId());
-        }
-        return dataStoreClientNames;
-    }
+    public void reportHealth(HealthReport healthReport) { }
 
     @Override
     public String createResource(Resource resource) {
@@ -173,4 +161,5 @@ public class RedisAggregatorServer extends AggregatorServer implements Aggregato
     public void shutdown() {
         logger.info("Shutting down aggregator client...");
     }
+
 }

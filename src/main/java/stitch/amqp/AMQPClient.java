@@ -4,7 +4,6 @@ import com.rabbitmq.client.AMQP;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.log4j.Logger;
 import stitch.amqp.rpc.RPCPrefix;
-import stitch.util.HealthReport;
 import stitch.util.Resource;
 
 import java.io.IOException;
@@ -108,29 +107,6 @@ public abstract class AMQPClient extends AMQPObject {
             }
         }
     }
-
-    /*private class CheckHealth extends TimerTask
-    {
-
-        private AMQPClient amqpClient;
-
-        public CheckHealth(AMQPClient amqpClient){
-            this.amqpClient = amqpClient;
-        }
-
-        public void run()
-        {
-            try {
-                logger.info("Requesting health report.");
-                amqpClient.healthReportQueue.add(amqpClient.reportHealth());
-                //healthReportQueue.add(reportHealth());
-                logger.info("Received health report.");
-                logger.info(String.format("Node Health:", reportHealth().getIsNodeHealthy()));
-            } catch (Exception error) {
-                logger.error("Failed to get heartbeat", error);
-            }
-        }
-    }*/
 
     public abstract HealthReport reportHealth() throws Exception;
 

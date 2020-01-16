@@ -4,12 +4,15 @@ import com.rabbitmq.client.AMQP;
 import org.apache.log4j.Logger;
 import org.bson.Document;
 import stitch.amqp.AMQPHandler;
+import stitch.amqp.HealthAlarm;
+import stitch.amqp.HealthReport;
 import stitch.amqp.rpc.RPCPrefix;
 import stitch.util.*;
 import stitch.amqp.AMQPServer;
 
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 
 import static stitch.util.Serializer.bytesToString;
 
@@ -29,6 +32,9 @@ public abstract class DataStoreServer extends AMQPServer implements DataStore {
         dsUUID = providerArgs.getString("uuid");
         dsType = providerArgs.getString("type");
         dsClass = providerArgs.getString("class");
+
+        this.addMetaData("type", providerArgs.getString("type"));
+        this.addMetaData("class", providerArgs.getString("class"));
 
         setHandler(new AMQPHandler(this) {
             @Override
@@ -98,14 +104,6 @@ public abstract class DataStoreServer extends AMQPServer implements DataStore {
                         } catch(Exception error){
                             logger.error("Failed to list resources", error);
                             return ResponseBytes.ERROR();
-                        }
-                    case "RPC_reportHealth":
-                        try {
-                            logger.trace("HeathReport requested");
-                            return HealthReport.toByteArray(reportHealth());
-                        } catch (Exception error){
-                            logger.error("Failed to generage health report", error);
-                            return null;
                         }
                     default:
                         logger.error("Failed to match RPC method " + messageProperties.getType());

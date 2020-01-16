@@ -1,4 +1,4 @@
-package stitch.util;
+package stitch.amqp;
 
 import java.io.Serializable;
 

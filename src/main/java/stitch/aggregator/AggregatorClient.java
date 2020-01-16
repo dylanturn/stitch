@@ -3,8 +3,9 @@ package stitch.aggregator;
 import org.apache.log4j.Logger;
 import stitch.amqp.AMQPClient;
 import stitch.amqp.rpc.RPCPrefix;
-import stitch.util.HealthReport;
+import stitch.amqp.HealthReport;
 import stitch.util.Resource;
+import stitch.util.Serializer;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -35,8 +36,12 @@ public class AggregatorClient extends AMQPClient implements Aggregator {
 
     @Override
     public ArrayList<String> listDataStores() {
-
-        return null;
+        try {
+            return (ArrayList<String>)Serializer.bytesToObject(call(getRouteKey(), "listDataStores", ""));
+        } catch(Exception error){
+            logger.error("Failed to list resources!", error);
+            return null;
+        }
     }
 
     @Override

@@ -42,11 +42,10 @@ public abstract class AMQPHandler implements DeliverCallback {
         byte[] responseBytes = null;
 
         try {
-            // Check to see if the RPC call should be routed internally before
+
+            // First try route the RPC call internally.
+            // If this isn't an internal call it should default to the abstract routeRPC method.
             responseBytes = routeInternalRPC(delivery.getProperties(), messageBytes);
-            if(responseBytes == null){
-                responseBytes = routeRPC(delivery.getProperties(), messageBytes);
-            }
 
         } catch (RuntimeException error) {
             /* End the RPC Call with the status code ERROR. */
@@ -67,9 +66,7 @@ public abstract class AMQPHandler implements DeliverCallback {
         }
     }
 
-
     protected abstract byte[] routeRPC(AMQP.BasicProperties messageProperties, byte[] messageBytes);
-
 
     private byte[] routeInternalRPC(AMQP.BasicProperties messageProperties, byte[] messageBytes){
         switch (messageProperties.getType()) {
@@ -80,11 +77,19 @@ public abstract class AMQPHandler implements DeliverCallback {
                     logger.error("Failed to get RPC stats!", error);
                     return null;
                 }
-
+            case "RPC_reportHealth":
+                try {
+                    logger.trace("HeathReport requested");
+                    return HealthReport.toByteArray(amqpServer.reportInternalHealth()
+                                                        .addExtra(amqpServer.getAllMetaData())
+                                                        .addAllAlarms(amqpServer.getAlarms())
+                                                        .setRpcStats(amqpServer.getRpcStats()));
+                } catch (Exception error){
+                    logger.error("Failed to generate health report", error);
+                    return null;
+                }
             default:
-                return null;
+                return routeRPC(messageProperties, messageBytes);
         }
     }
-
-
 }

@@ -30,6 +30,9 @@ class StitchCLI implements Callable<Integer> {
     @Parameters(index = "0", description = "The action to perform.")
     private String action;
 
+    @Parameters(index = "1", description = "The subject to perform the action against.")
+    private String subject;
+
     @Option(names = {"-t", "--type"}, description = "The UUID of the aggregator to interact with")
     private String resourceType;
 
@@ -76,10 +79,17 @@ class StitchCLI implements Callable<Integer> {
             }
 
             aggregatorClient = new AggregatorClient(aggregatorId);
+
             switch (action) {
                 case "list":
-                    listAndPrint();
-                    break;
+                    switch (subject){
+                        case "resources":
+                            listAndPrint();
+                            break;
+                        case "datastores":
+                            listAndPrintDataStores();
+                            break;
+                    }
 
                 case "find":
                     findAndPrint(query);
@@ -109,16 +119,6 @@ class StitchCLI implements Callable<Integer> {
         return 0;
     }
 
-    private void getAndPrint(String resourceId){
-        Resource resource = aggregatorClient.getResource(resourceId);
-        System.out.println("UUID:      " + resource.getUUID());
-        System.out.println("DataStore: " + resource.getMeta("datastoreId"));
-        System.out.println("Type:      " + resource.getMeta("data_type"));
-        System.out.println("Size:      " + resource.getMeta("data_size"));
-        System.out.println("Timestamp: " + resource.getMeta("created"));
-        System.out.println("Data:      " + new String(resource.getData()));
-    }
-
     private void statsAndPrint(){
         System.out.println("STATS?!");
         RPCStats rpcStats = aggregatorClient.getRpcStats();
@@ -127,20 +127,51 @@ class StitchCLI implements Callable<Integer> {
         System.out.println("Failed Calls:  " + rpcStats.getTotalCalls());
     }
 
-    private void createResource(String resourceType, String resourceData){
-        aggregatorClient.createResource(new Resource(resourceType, resourceData.getBytes()));
+    /*
+
+    DATASTORES
+
+     */
+
+    private void listAndPrintDataStores(){
+        logger.trace("Execute list and print.");
+        ArrayList<String> dataStoreArrayList = aggregatorClient.listDataStores();
+        printDataStoreTable(dataStoreArrayList);
     }
 
-    private void deleteResource(String resourceId){
-        aggregatorClient.deleteResource(resourceId);
+    private void printDataStoreTable(ArrayList<String> dataStoreArrayList){
+        for(String datastore : dataStoreArrayList){
+            System.out.println(datastore);
+        }
+        /*if(!quiet) {
+            System.out.println("DataStore Count: " + dataStoreArrayList.size());
+            if(dataStoreArrayList.size() > 0) {
+                String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-20s |", "Resource ID", "DataStore ID", "Type", "Size", "Timestamp");
+                System.out.println(tableHeader);
+            }
+        }
+        for(Resource resource : resourceArrayList) {
+            String uuid = resource.getUUID();
+            String datastoreId = (String)resource.getMeta("datastoreId");
+            String dataType = (String)resource.getMeta("data_type");
+            int dataSize = resource.getMetaInt("data_size");
+            long created = resource.getMetaLong("created");
+            String tableBody = uuid;
+            if(!quiet) {
+                tableBody = String.format("| %36s | %36s | %10s | %10s | %20s |", uuid, datastoreId, dataType, dataSize, created);
+            }
+            System.out.println(tableBody);
+        }*/
     }
 
-    private void findAndPrint(String query){
-        ArrayList<Resource> resourceArrayList = aggregatorClient.findResources(query);
-        printResourceTable(resourceArrayList);
-    }
+    /*
+
+    RESOURCES
+
+     */
 
     private void listAndPrint(){
+        logger.trace("Execute list and print.");
         ArrayList<Resource> resourceArrayList = aggregatorClient.listResources();
         printResourceTable(resourceArrayList);
     }
@@ -165,5 +196,28 @@ class StitchCLI implements Callable<Integer> {
             }
             System.out.println(tableBody);
         }
+    }
+
+    private void getAndPrint(String resourceId){
+        Resource resource = aggregatorClient.getResource(resourceId);
+        System.out.println("UUID:      " + resource.getUUID());
+        System.out.println("DataStore: " + resource.getMeta("datastoreId"));
+        System.out.println("Type:      " + resource.getMeta("data_type"));
+        System.out.println("Size:      " + resource.getMeta("data_size"));
+        System.out.println("Timestamp: " + resource.getMeta("created"));
+        System.out.println("Data:      " + new String(resource.getData()));
+    }
+
+    private void createResource(String resourceType, String resourceData){
+        aggregatorClient.createResource(new Resource(resourceType, resourceData.getBytes()));
+    }
+
+    private void deleteResource(String resourceId){
+        aggregatorClient.deleteResource(resourceId);
+    }
+
+    private void findAndPrint(String query){
+        ArrayList<Resource> resourceArrayList = aggregatorClient.findResources(query);
+        printResourceTable(resourceArrayList);
     }
 }

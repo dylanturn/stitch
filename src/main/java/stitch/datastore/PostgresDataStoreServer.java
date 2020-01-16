@@ -1,7 +1,7 @@
 package stitch.datastore;
 
 import org.bson.Document;
-import stitch.util.HealthReport;
+import stitch.amqp.HealthReport;
 import stitch.util.Resource;
 
 public class PostgresDataStoreServer extends DataStoreServer {
@@ -16,9 +16,7 @@ public class PostgresDataStoreServer extends DataStoreServer {
     }
 
     @Override
-    public HealthReport reportHealth() {
-        return null;
-    }
+    public void reportHealth(HealthReport healthReport) { }
 
     @Override
     public void shutdown() {

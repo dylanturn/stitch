@@ -1,36 +1,47 @@
-package stitch.util;
+package stitch.amqp;
 
 import org.apache.log4j.Logger;
+import stitch.amqp.rpc.RPCStats;
 
 import java.io.*;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class HealthReport implements Serializable {
 
     private static final long serialVersionUID = 5470L;
 
-    private static final Logger logger = Logger.getLogger(HealthReport.class);
-
     private long reportTime;
     private boolean isNodeHealthy;
     private String nodeId;
     private long nodeUptime;
+    private RPCStats rpcStats;
+    private ArrayList<HealthAlarm> alarms = new ArrayList<>();
+    private HashMap<String, Object> extraData = new HashMap<>();
 
-    private ArrayList<HealthAlarm> nodeHealthAlarms = new ArrayList<>();
-
-    public HealthReport(boolean nodeHealthy, String nodeId, long nodeUptime, List<HealthAlarm> healthAlarms){
+    public HealthReport(boolean nodeHealthy, String nodeId, long nodeUptime, List<HealthAlarm> healthAlarms, RPCStats rpcStats){
         this.reportTime = Instant.now().toEpochMilli();
         this.isNodeHealthy = nodeHealthy;
         this.nodeId = nodeId;
         this.nodeUptime = nodeUptime;
         if(healthAlarms != null)
-            this.nodeHealthAlarms.addAll(healthAlarms);
+            this.alarms.addAll(healthAlarms);
+        if(rpcStats != null)
+            this.rpcStats = rpcStats;
     }
 
     public HealthReport(boolean nodeHealthy, String nodeId, long nodeUptime){
-        this(nodeHealthy, nodeId, nodeUptime, null);
+        this(nodeHealthy, nodeId, nodeUptime, null, null);
+    }
+
+    public HealthReport(boolean nodeHealthy, String nodeId, long nodeUptime, List<HealthAlarm> healthAlarms){
+        this(nodeHealthy, nodeId, nodeUptime, healthAlarms, null);
+    }
+
+    public HealthReport(boolean nodeHealthy, String nodeId, long nodeUptime, RPCStats rpcStats){
+        this(nodeHealthy, nodeId, nodeUptime, null, rpcStats);
     }
 
     public long getReportTime(){
@@ -49,12 +60,39 @@ public class HealthReport implements Serializable {
         return nodeUptime;
     }
 
+    /* EXTRA DATA */
+    public HashMap<String, Object> getExtra() { return extraData; }
+
+    public HealthReport addExtra(String key, Object value) {
+        this.extraData.put(key, value);
+        return this;
+    }
+
+    public HealthReport addExtra(HashMap<String, Object> extraData) {
+        this.extraData.putAll(extraData);
+        return this;
+    }
+
+    /* HEALTH ALARMS */
     public List<HealthAlarm> getAlarms(){
-        return nodeHealthAlarms;
+        return alarms;
     }
 
     public HealthReport addAlarm(HealthAlarm healthAlarm) {
-        nodeHealthAlarms.add(healthAlarm);
+        alarms.add(healthAlarm);
+        return this;
+    }
+
+    public HealthReport addAllAlarms(ArrayList<HealthAlarm> nodeHealthAlarms){
+        this.alarms.addAll(nodeHealthAlarms);
+        return this;
+    }
+
+    /* RPC STATS */
+    public RPCStats getRpcStats() { return rpcStats; }
+
+    public HealthReport setRpcStats(RPCStats rpcStats) {
+        this.rpcStats = rpcStats;
         return this;
     }
 
