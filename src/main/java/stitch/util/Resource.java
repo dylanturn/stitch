@@ -11,7 +11,6 @@ import java.util.UUID;
 public class Resource implements Serializable {
 
     private static final long serialVersionUID = 1234L;
-    private static final Logger logger = Logger.getLogger(Resource.class);
 
     private String uuid;
     private Map<String, Object> metaMap = new HashMap<>();
@@ -61,18 +60,10 @@ public class Resource implements Serializable {
     }
 
     public static Resource fromByteArray(byte[] resourceBytes) throws IOException, ClassNotFoundException {
-        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(resourceBytes);
-        ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
-        Resource resource = (Resource) objectInputStream.readObject();
-        objectInputStream.close();
-        return resource;
+        return (Resource)Serializer.bytesToObject(resourceBytes);
     }
 
     public static byte[] toByteArray(Resource resource) throws IOException {
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-        objectOutputStream.writeObject(resource);
-        objectOutputStream.close();
-        return byteArrayOutputStream.toByteArray();
+        return Serializer.objectToBytes(resource);
     }
 }

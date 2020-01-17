@@ -1,36 +1,47 @@
 package stitch.amqp.rpc;
 
-import java.io.Serializable;
-import java.time.Instant;
+import java.util.HashMap;
 
-public class RPCRequest implements Serializable {
+public class RPCRequest extends RPCObject {
 
-    private static final long serialVersionUID = 6891L;
 
-    private String source;
-    private String destination;
-    private String method;
-    private long requestStart;
-    private long requestEnd;
-    private RPCStatusCode statusCode;
+    private HashMap<String, Object> arguments = new HashMap<>();
 
-    public RPCRequest(String source, String destination, String method){
-        this.requestStart = Instant.now().toEpochMilli();
-        this.source = source;
-        this.destination = destination;
-        this.method = method;
+    public RPCRequest(String source, String destination, String method) {
+        super(source, destination, method);
     }
 
-    public RPCRequest requestComplete(RPCStatusCode statusCode) {
-        this.requestEnd = Instant.now().toEpochMilli();
-        this.statusCode = statusCode;
+    public RPCRequest(String source, String destination, String method, HashMap<String, Object> arguments){
+        this(source, destination, method);
+        this.putAllArg(arguments);
+    }
+
+    public RPCResponse createResponse(RPCStatusCode rpcStatusCode){
+        completeRequest(rpcStatusCode);
+        return new RPCResponse(this);
+    }
+
+    public RPCResponse createResponse(RPCStatusCode rpcStatusCode, byte[] responseBytes){
+        return createResponse(rpcStatusCode).setResponseBytes(responseBytes);
+    }
+
+    public RPCResponse createResponse(RPCStatusCode rpcStatusCode, Object responseObject){
+        return createResponse(rpcStatusCode).setResponseObject(responseObject);
+    }
+
+    /* -- RPC ARGS -- */
+    public Object getArg(String key){ return arguments.get(key); }
+    public String getStringArg(String key){ return (String)getArg(key); }
+    public boolean getBoolArg(String key){ return (boolean)getArg(key); }
+    public int getIntArg(String key){ return (int)getArg(key); }
+    public long getLongArg(String key){ return (long)getArg(key); }
+    public RPCRequest putArg(String key, Object value) {
+        arguments.put(key, value);
+        return this;
+    }
+    public RPCRequest putAllArg(HashMap<String, Object> extraArguments) {
+        arguments.putAll(extraArguments);
         return this;
     }
 
-    public String getSource() { return source; }
-    public String getDestination() { return destination; }
-    public String getMethod() { return method; }
-    public long getRequestStart() { return requestStart; }
-    public long getRequestEnd() { return requestEnd; }
-    public RPCStatusCode getStatusCode() { return statusCode; }
 }

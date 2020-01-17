@@ -2,6 +2,7 @@ package stitch.amqp.rpc;
 
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.javatuples.Triplet;
+import stitch.util.Serializer;
 
 import java.io.*;
 import java.util.Iterator;
@@ -57,19 +58,11 @@ public class RPCStats implements Serializable {
     }
 
     public static RPCStats fromByteArray(byte[] rpcStatsbytes) throws IOException, ClassNotFoundException {
-        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(rpcStatsbytes);
-        ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
-        RPCStats rpcStats = (RPCStats) objectInputStream.readObject();
-        objectInputStream.close();
-        return rpcStats;
+        return (RPCStats)Serializer.bytesToObject(rpcStatsbytes);
     }
 
     public static byte[] toByteArray(RPCStats rpcStats) throws IOException {
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-        objectOutputStream.writeObject(rpcStats);
-        objectOutputStream.close();
-        return byteArrayOutputStream.toByteArray();
+        return Serializer.objectToBytes(rpcStats);
     }
 
 }
