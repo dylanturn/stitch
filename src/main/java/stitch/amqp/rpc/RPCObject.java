@@ -48,4 +48,16 @@ public abstract class RPCObject implements Serializable {
     public static byte[] toByteArray(RPCRequest rpcRequest) throws IOException {
         return Serializer.objectToBytes(rpcRequest);
     }
+
+    public enum ASDFPrefix {
+        DATASTORE ("datastore"),
+        AGGREGATOR ("aggregator");
+
+        private final String name;
+        private ASDFPrefix(String s) { name = s; }
+        public boolean equalsName(String otherName) { return name.equals(otherName); }
+        public String toString() { return this.name; }
+    }
+
 }
+
