@@ -4,9 +4,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import org.apache.log4j.Logger;
-import stitch.amqp.rpc.RPCPrefix;
 import stitch.amqp.rpc.RPCRecord;
-import stitch.amqp.rpc.RPCStats;
 import stitch.util.properties.MongoPropertyStore;
 import stitch.util.properties.PropertyStore;
 
@@ -16,10 +14,10 @@ public abstract class AMQPObject implements Runnable, AutoCloseable {
 
     static final Logger logger = Logger.getLogger(AMQPObject.class);
 
-    private RPCPrefix prefix;
+    private AMQPPrefix prefix;
     private String id;
     private int callRecordQueueLength = 100;
-    private RPCStats rpcStats;
+    private AMQPStats amqpStats;
 
     protected String routeKey;
     private String amqpUsername;
@@ -32,11 +30,11 @@ public abstract class AMQPObject implements Runnable, AutoCloseable {
     private Channel channel;
     private Object monitor;
 
-    public AMQPObject(RPCPrefix prefix, String id){
+    public AMQPObject(AMQPPrefix prefix, String id){
 
         this.prefix = prefix;
         this.id = id;
-        this.rpcStats = new RPCStats(callRecordQueueLength);
+        this.amqpStats = new AMQPStats(callRecordQueueLength);
 
         // Get the properties for the AMQP connection.
         PropertyStore propertyStore = new MongoPropertyStore();
@@ -63,7 +61,7 @@ public abstract class AMQPObject implements Runnable, AutoCloseable {
         }
     }
 
-    public RPCPrefix getPrefix(){
+    public AMQPPrefix getPrefix(){
         return this.prefix;
     }
     public String getPrefixString(){
@@ -78,11 +76,11 @@ public abstract class AMQPObject implements Runnable, AutoCloseable {
 
     // Is this ok?
     public RPCRecord startRPC(String caller, String method){
-        return new RPCRecord(caller, method, rpcStats);
+        return new RPCRecord(caller, method, amqpStats);
     }
 
-    public RPCStats getRpcStats() {
-        return rpcStats;
+    public AMQPStats getAmqpStats() {
+        return amqpStats;
     }
 
     public String getHost(){

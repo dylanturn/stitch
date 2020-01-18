@@ -8,7 +8,7 @@ import org.apache.log4j.Logger;
 import org.bson.Document;
 import org.bson.types.Binary;
 import stitch.amqp.HealthReport;
-import stitch.util.Resource;
+import stitch.resource.Resource;
 
 import java.util.*;
 
@@ -78,9 +78,9 @@ public class MongoDataStoreServer extends DataStoreServer {
     public void connect() {
 
         logger.info("Start a new DataStore instance...");
-        logger.info("Class: " + dsClass);
-        logger.info("Type: " + dsType);
-        logger.info("UUID:  " + dsUUID);
+        logger.info("UUID:  " + getId());
+        logger.info("Class: " + getStoreClass());
+        logger.info("Type: " + getStoreType());
         logger.info("Host: " + dsHost);
         logger.info("Options: " + dsOptions);
         logger.info("Database: " + database);

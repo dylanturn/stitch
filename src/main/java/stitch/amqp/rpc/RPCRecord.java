@@ -1,5 +1,7 @@
 package stitch.amqp.rpc;
 
+import stitch.amqp.AMQPStats;
+
 import java.io.Serializable;
 import java.time.Instant;
 
@@ -12,19 +14,19 @@ public class RPCRecord implements Serializable {
     private long callStart;
     private long callEnd;
     private RPCStatusCode result;
-    private RPCStats rpcStats;
+    private AMQPStats amqpStats;
 
-    public RPCRecord(String caller, String method, RPCStats rpcStats){
+    public RPCRecord(String caller, String method, AMQPStats amqpStats){
         this.callStart = Instant.now().toEpochMilli();
         this.caller = caller;
         this.method = method;
-        this.rpcStats = rpcStats;
+        this.amqpStats = amqpStats;
     }
 
     public void endCall(RPCStatusCode result) {
         this.callEnd = Instant.now().toEpochMilli();
         this.result = result;
-        this.rpcStats.queueCallRecord(this);
+        this.amqpStats.queueCallRecord(this);
     }
 
     public String getCaller() { return caller; }

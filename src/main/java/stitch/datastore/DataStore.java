@@ -1,6 +1,6 @@
 package stitch.datastore;
 
-import stitch.util.Resource;
+import stitch.resource.Resource;
 
 public interface DataStore {
     String createResource(Resource resource) throws Exception;

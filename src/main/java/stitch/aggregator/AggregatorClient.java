@@ -2,14 +2,11 @@ package stitch.aggregator;
 
 import org.apache.log4j.Logger;
 import stitch.amqp.AMQPClient;
-import stitch.amqp.rpc.RPCPrefix;
+import stitch.amqp.AMQPPrefix;
 import stitch.amqp.HealthReport;
-import stitch.util.Resource;
-import stitch.util.Serializer;
+import stitch.amqp.rpc.RPCRequest;
+import stitch.resource.Resource;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.util.ArrayList;
 
 public class AggregatorClient extends AMQPClient implements Aggregator {
@@ -17,17 +14,7 @@ public class AggregatorClient extends AMQPClient implements Aggregator {
     static final Logger logger = Logger.getLogger(AggregatorClient.class);
 
     public AggregatorClient(String id) throws Exception {
-        super(RPCPrefix.AGGREGATOR, id);
-    }
-
-    @Override
-    public ArrayList<HealthReport> listDataStores() {
-        try {
-            return (ArrayList<HealthReport>)Serializer.bytesToObject(call(getRouteKey(), "listDataStores", ""));
-        } catch(Exception error){
-            logger.error("Failed to list resources!", error);
-            return null;
-        }
+        super(AMQPPrefix.AGGREGATOR, id);
     }
 
     @Override
@@ -36,52 +23,67 @@ public class AggregatorClient extends AMQPClient implements Aggregator {
     }
 
     @Override
-    public void updateResource(Resource resource) {
+    public boolean updateResource(Resource resource) {
+        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "updateResource")
+                .putArg("resource", resource);
         try {
-            call(getRouteKey(), "updateResource", Resource.toByteArray(resource));
+            return (boolean) invokeRPC(rpcRequest).getResponseObject();
         } catch(Exception error){
             logger.error("Failed to update the resource: " + resource.getUUID(), error);
+            return false;
         }
     }
 
     @Override
     public Resource getResource(String resourceId) {
+        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "getResource")
+                .putArg("resourceId", resourceId);
         try {
-            return Resource.fromByteArray(call(getRouteKey(), "getResource", resourceId));
+            return (Resource)invokeRPC(rpcRequest).getResponseObject();
         } catch(Exception error){}
         return null;
     }
 
     @Override
-    public void deleteResource(String resourceId) {
+    public boolean deleteResource(String resourceId) {
+        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "deleteResource")
+                .putArg("resourceId", resourceId);
         try {
-            call(getRouteKey(), "deleteResource", resourceId.getBytes());
+            return (boolean) invokeRPC(rpcRequest).getResponseObject();
         } catch(Exception error){
             logger.error("Failed to delete resources!", error);
+            return false;
         }
     }
 
     @Override
     public ArrayList<Resource> findResources(String filter) {
+        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "findResources")
+                .putArg("filter", filter);
         try {
-            byte[] objectBytes = call(getRouteKey(), "findResources", filter);
-            ByteArrayInputStream bis = new ByteArrayInputStream(objectBytes);
-            ObjectInputStream ois = new ObjectInputStream(bis);
-            return (ArrayList<Resource>)ois.readObject();
+            return (ArrayList<Resource>) invokeRPC(rpcRequest).getResponseObject();
         } catch (Exception error) {
             logger.error("Failed to find resources!", error);
             return null;
         }
-
     }
 
     @Override
     public ArrayList<Resource> listResources() {
+        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "listResources");
         try {
-            byte[] objectBytes = call(getRouteKey(), "listResources", "");
-            ByteArrayInputStream bis = new ByteArrayInputStream(objectBytes);
-            ObjectInputStream ois = new ObjectInputStream(bis);
-            return (ArrayList<Resource>)ois.readObject();
+            return (ArrayList<Resource>)invokeRPC(rpcRequest).getResponseObject();
+        } catch(Exception error){
+            logger.error("Failed to list resources!", error);
+            return null;
+        }
+    }
+
+    @Override
+    public ArrayList<HealthReport> listDataStores() {
+        try {
+            RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "listDataStores");
+            return (ArrayList<HealthReport>)invokeRPC(rpcRequest).getResponseObject();
         } catch(Exception error){
             logger.error("Failed to list resources!", error);
             return null;
@@ -90,11 +92,14 @@ public class AggregatorClient extends AMQPClient implements Aggregator {
 
     @Override
     public void registerResource(String datastoreId, Resource resource) {
+        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "registerResource")
+                .putArg("datastoreId", datastoreId)
+                .putArg("resource", resource);
         try {
             logger.info(String.format("Registering resource: %s", resource.getUUID()));
             logger.info(String.format("Datastore Id:         %s", datastoreId));
             logger.info(String.format("Route Key:            %s", getRouteKey()));
-            call(getRouteKey(), "registerResource", resource);
+            invokeRPC(rpcRequest);
         } catch(Exception error){
             logger.error("Failed to register resource!", error);
         }

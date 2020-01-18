@@ -9,13 +9,10 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import stitch.aggregator.AggregatorClient;
-import stitch.amqp.HealthAlarm;
 import stitch.amqp.HealthReport;
-import stitch.amqp.rpc.RPCStats;
-import stitch.util.Resource;
+import stitch.amqp.AMQPStats;
+import stitch.resource.Resource;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -123,10 +120,10 @@ class StitchCLI implements Callable<Integer> {
 
     private void statsAndPrint(){
         System.out.println("STATS?!");
-        RPCStats rpcStats = aggregatorClient.getRpcStats();
-        System.out.println("Total Calls:   " + rpcStats.getTotalCalls());
-        System.out.println("Success Calls: " + rpcStats.getTotalCalls());
-        System.out.println("Failed Calls:  " + rpcStats.getTotalCalls());
+        AMQPStats amqpStats = aggregatorClient.getAmqpStats();
+        System.out.println("Total Calls:   " + amqpStats.getTotalCalls());
+        System.out.println("Success Calls: " + amqpStats.getTotalCalls());
+        System.out.println("Failed Calls:  " + amqpStats.getTotalCalls());
     }
 
     /*
@@ -154,7 +151,7 @@ class StitchCLI implements Callable<Integer> {
         }
         for(HealthReport healthReport : dataStoreHealthReports) {
             String storeId = healthReport.getNodeId();
-            long storeUptime = (long)healthReport.getNodeUptime();
+            long storeUptime = healthReport.getNodeUptime();
             String storeType = (String)healthReport.getExtra().get("type");
             String storeClass = (String)healthReport.getExtra().get("class");
             String tableBody = storeId;
@@ -187,8 +184,8 @@ class StitchCLI implements Callable<Integer> {
         }
         for(Resource resource : resourceArrayList) {
             String uuid = resource.getUUID();
-            String datastoreId = (String)resource.getMeta("datastoreId");
-            String dataType = (String)resource.getMeta("data_type");
+            String datastoreId = resource.getMetaString("datastoreId");
+            String dataType = resource.getMetaString("data_type");
             int dataSize = resource.getMetaInt("data_size");
             long created = resource.getMetaLong("created");
             String tableBody = uuid;

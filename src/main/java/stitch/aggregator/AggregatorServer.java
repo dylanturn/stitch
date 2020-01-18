@@ -1,20 +1,17 @@
 package stitch.aggregator;
 
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.LongString;
 import org.apache.log4j.Logger;
 import org.bson.Document;
 import stitch.amqp.AMQPHandler;
 import stitch.amqp.AMQPServer;
 import stitch.amqp.HealthReport;
-import stitch.amqp.rpc.RPCPrefix;
+import stitch.amqp.AMQPPrefix;
+import stitch.amqp.rpc.RPCRequest;
+import stitch.amqp.rpc.RPCResponse;
+import stitch.amqp.rpc.RPCStatusCode;
 import stitch.datastore.DataStoreClient;
-import stitch.util.Resource;
-import stitch.util.ResponseBytes;
-import stitch.util.Serializer;
+import stitch.resource.Resource;
 
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,7 +24,7 @@ public abstract class AggregatorServer extends AMQPServer implements Aggregator,
     protected HashMap<String, DataStoreClient> providerClients = new HashMap<>();
 
     public AggregatorServer(Document aggregatorArgs, Iterable<Document> providers) throws Exception {
-        super(RPCPrefix.AGGREGATOR, aggregatorArgs.getString("uuid"));
+        super(AMQPPrefix.AGGREGATOR, aggregatorArgs.getString("uuid"));
         this.aggregatorArgs = aggregatorArgs;
 
         for(Document provider : providers){
@@ -37,121 +34,146 @@ public abstract class AggregatorServer extends AMQPServer implements Aggregator,
 
         setHandler(new AMQPHandler(this) {
             @Override
-            protected byte[] routeRPC(AMQP.BasicProperties messageProperties, byte[] messageBytes) {
+            protected RPCResponse routeRPC(RPCRequest rpcRequest) {
 
-                switch (messageProperties.getType()) {
-                    case "RPC_listDataStores":
-                        try{
-                            byte[] dataStoreBytes= Serializer.objectToBytes(listDataStores());
-                            if(dataStoreBytes == null){
-                                return ResponseBytes.NULL();
-                            } else {
-                                return dataStoreBytes;
-                            }
+                switch (rpcRequest.getMethod()) {
 
+                    case "createResource":
+                        try {
+                            logger.trace("Received request to create new resource");
+                            Resource resource = (Resource)rpcRequest.getArg("resource");
+                            logger.trace("Creating new resource with UUID: " + resource.getUUID());
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.OK)
+                                    .setResponseObject(createResource(resource));
                         } catch(Exception error){
-                            logger.error("Failed to list datastores.", error);
-                            return ResponseBytes.ERROR();
-                        }
-                    case "RPC_createResource":
-                        try {
-                            Resource resource = Resource.fromByteArray(messageBytes);
-                            String resourceId = createResource(resource);
-                            return resourceId.getBytes();
-                        } catch (Exception error){
                             logger.error("Failed to create resource!", error);
-                            return ResponseBytes.ERROR();
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.ERROR)
+                                    .setStatusMessage(error.getMessage());
                         }
-                    case "RPC_updateResource":
+
+                    case "updateResource":
                         try {
-                            Resource resource = Resource.fromByteArray(messageBytes);
-                            updateResource(resource);
+                            logger.trace("Received request to update new resource");
+                            Resource resource = (Resource)rpcRequest.getArg("resource");
+                            logger.trace("Updating resource with UUID: " + resource.getUUID());
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.OK)
+                                    .setResponseObject(updateResource(resource));
                         } catch (Exception error){
                             logger.error("Failed to update resource!", error);
-                            return ResponseBytes.ERROR();
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.ERROR)
+                                    .setStatusMessage(error.getMessage());
                         }
-                    case "RPC_getResource":
+
+                    case "getResource":
                         try {
-                            String resourceId = new String(messageBytes, "UTF-8");
-                            return Resource.toByteArray(getResource(resourceId));
-                        } catch (Exception error){
-                            logger.error("Failed to get resource!", error);
-                            return ResponseBytes.ERROR();
-                        }
-                    case "RPC_deleteResource":
-                        try {
-                            String resourceId = new String(messageBytes, "UTF-8");
-                            deleteResource(resourceId);
-                        } catch (Exception error){
-                            logger.error("Failed to delete resource!", error);
-                            return ResponseBytes.ERROR();
-                        }
-                    case "RPC_findResources":
-                        try {
-                            String filterString = new String(messageBytes, "UTF-8");
-                            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                            ObjectOutputStream oos = new ObjectOutputStream(bos);
-                            oos.writeObject(findResources(filterString));
-                            oos.flush();
-                            byte[] resourceList= bos.toByteArray();
-                            if(resourceList == null){
-                                return ResponseBytes.NULL();
-                            } else {
-                                return resourceList;
+                            logger.info("Received request to get a resource");
+                            String resourceId = rpcRequest.getStringArg("resourceId");
+                            logger.info("Getting a resource with UUID: " + resourceId);
+                            Resource resource = getResource(resourceId);
+                            if(resource == null) {
+                                logger.warn(String.format("Resource %s not found.", resourceId));
+                                return rpcRequest.createResponse()
+                                        .setStatusCode(RPCStatusCode.MISSING);
                             }
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.OK)
+                                    .setResponseObject(resource);
+                        } catch ( Exception error) {
+                            logger.error("Failed to get resource", error);
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.ERROR)
+                                    .setStatusMessage(error.getMessage());
+                        }
+
+                    case "deleteResource":
+                        try {
+                            logger.info("Received request to delete a resource");
+                            String resourceId = rpcRequest.getStringArg("resourceId");
+                            if(deleteResource(resourceId)) {
+                                return rpcRequest.createResponse()
+                                        .setStatusCode(RPCStatusCode.OK);
+                            } else {
+                                logger.warn(String.format("Resource %s not found.", resourceId));
+                                return rpcRequest.createResponse()
+                                        .setStatusCode(RPCStatusCode.MISSING)
+                                        .setStatusMessage("Resource not found.");
+                            }
+                        } catch ( Exception error) {
+                            logger.error(String.format("Failed to delete Resource", error));
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.ERROR)
+                                    .setStatusMessage(error.getMessage());
+                        }
+
+                    case "listResources":
+                        try {
+                            logger.info("Received request to list resources");
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.OK)
+                                    .setResponseObject(listResources());
+                        } catch(Exception error){
+                            logger.error("Failed to list resources", error);
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.ERROR)
+                                    .setStatusMessage(error.getMessage());
+                        }
+
+                    case "listDataStores":
+                        try{
+                            logger.info("Received request to list the datastores");
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.OK)
+                                    .setResponseObject(listDataStores());
+                        } catch(Exception error){
+                            logger.error("Failed to list datastores.", error);
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.ERROR)
+                                    .setStatusMessage(error.getMessage());
+                        }
+
+                    case "findResources":
+                        try {
+                            logger.info("Received request to find a resource");
+                            String filterString = rpcRequest.getStringArg("filter");
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.OK)
+                                    .setResponseObject(findResources(filterString));
                         } catch (Exception error){
                             logger.error("Failed to find resource!", error);
-                            return ResponseBytes.ERROR();
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.ERROR)
+                                    .setStatusMessage(error.getMessage());
                         }
-                    case "RPC_listResources":
+
+                    case "registerResource":
                         try {
-                            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                            ObjectOutputStream oos = new ObjectOutputStream(bos);
-                            oos.writeObject(listResources());
-                            oos.flush();
-                            byte[] resourceList= bos.toByteArray();
-                            if(resourceList == null){
-                                return ResponseBytes.NULL();
-                            } else {
-                                return resourceList;
-                            }
-                        } catch (Exception error){
-                            logger.error("Failed to list resources!", error);
-                            return ResponseBytes.ERROR();
-                        }
-                    case "RPC_registerResource":
+                            logger.info("Received request to register a resource");
+                            String datastoreId = rpcRequest.getStringArg("datastoreId");
+                            Resource resource = (Resource)rpcRequest.getArg("resource");
 
-                        logger.info("Registering resource....");
-                        Object callerPrefixObject = messageProperties.getHeaders().get("caller_prefix");
-
-                        logger.info(String.format("Caller Prefix: %s", callerPrefixObject));
-                        Object callerIdObject = messageProperties.getHeaders().get("caller_id");
-
-                        try {
-                            LongString longCallerPrefix = (LongString)callerPrefixObject;
-                            LongString longCallerId = (LongString)callerPrefixObject;
-                            String callerPrefix = longCallerPrefix.toString();
-                            String callerId = longCallerId.toString();
-                            Resource resource = Resource.fromByteArray(messageBytes);
-
+                            logger.trace(String.format("Caller ID:     %s", datastoreId));
                             logger.trace(String.format("Resource ID:   %s", resource.getUUID()));
-                            logger.trace(String.format("Caller Prefix: %s", callerPrefix));
-                            logger.trace(String.format("Caller ID:     %s", callerId));
+                            registerResource(datastoreId, resource);
 
-                            registerResource(callerId, resource);
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.OK);
 
                         } catch (Exception error){
                             logger.error("Failed to register resource!", error);
-                            logger.error(String.format("Caller Prefix: %s", callerPrefixObject));
-                            logger.error(String.format("Caller ID:     %s", callerIdObject));
-                            return ResponseBytes.ERROR();
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.ERROR)
+                                    .setStatusMessage(error.getMessage());
                         }
 
-                        return null;
-
                     default:
-                        logger.error("Failed to match RPC method " + messageProperties.getType());
-                        return ResponseBytes.ERROR();
+                        logger.error("Failed to match RPC method: " + rpcRequest.getMethod());
+                        return rpcRequest.createResponse()
+                                .setStatusCode(RPCStatusCode.MISSING)
+                                .setStatusMessage("Failed to match RPC method: " + rpcRequest.getMethod());
                 }
 
             }

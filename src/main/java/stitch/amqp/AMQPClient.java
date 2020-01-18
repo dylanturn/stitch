@@ -3,8 +3,8 @@ package stitch.amqp;
 import com.rabbitmq.client.AMQP;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.log4j.Logger;
-import stitch.amqp.rpc.RPCPrefix;
-import stitch.util.Resource;
+import stitch.amqp.rpc.RPCRequest;
+import stitch.amqp.rpc.RPCResponse;
 
 import java.io.IOException;
 import java.util.*;
@@ -23,10 +23,57 @@ public abstract class AMQPClient extends AMQPObject {
     private HealthReport lastHealthReport;
     private CircularFifoQueue<HealthReport> healthReportQueue;
 
-    public AMQPClient(RPCPrefix prefix, String id) {
+    public AMQPClient(AMQPPrefix prefix, String id) {
         super(prefix, id);
         this.healthReportQueue = new CircularFifoQueue<>(healthReportQueueLength);
         startTimer();
+    }
+
+    public RPCResponse invokeRPC(RPCRequest rpcRequest) throws IOException, InterruptedException {
+
+        // Setup the queue and correlation id that the server will use to reply to the client.
+        final String corrId = UUID.randomUUID().toString();
+        String replyQueueName = getChannel().queueDeclare().getQueue();
+
+        // Create the properties that will be sent with the RPC call.
+        AMQP.BasicProperties props = new AMQP.BasicProperties
+                .Builder()
+                .correlationId(corrId)
+                .replyTo(replyQueueName)
+                .build();
+
+        logger.debug("Queue:       " + rpcRequest.getDestination());
+        logger.debug("CorrID:      " + corrId);
+        logger.debug("Reply Queue: " + replyQueueName);
+        logger.debug("Method:      RPC_" + rpcRequest.getMethod());
+
+        logger.debug("Publishing the creation RPC...");
+        // Publish the RPC call to the queue.
+        getChannel().queueDeclare(rpcRequest.getDestination(), false, false, false, null);
+        getChannel().basicPublish(getExchange(), rpcRequest.getDestination(), props, RPCRequest.toByteArray(rpcRequest));
+        final BlockingQueue<Object> response = new ArrayBlockingQueue<>(1);
+
+        String ctag = getChannel().basicConsume(replyQueueName, true, (consumerTag, delivery) -> {
+            if (delivery.getProperties().getCorrelationId().equals(corrId)) {
+                try {
+                    response.offer(RPCResponse.fromByteArray(delivery.getBody()));
+                } catch( ClassNotFoundException error) {
+                    logger.error("Failed to load RPC response from bytes", error);
+                }
+            }
+        }, consumerTag -> {
+        });
+
+        logger.debug("Waiting for response...");
+        RPCResponse rpcResponse = (RPCResponse)response.take();
+        getChannel().basicCancel(ctag);
+        return rpcResponse;
+    }
+
+    private void startTimer(){
+        healthReportTimer = new Timer();
+        TimerTask task = new CheckHealth();
+        healthReportTimer.schedule(task, initialDelay, timerPeriod);
     }
 
     public HealthReport getLastHealthReport(){
@@ -35,70 +82,6 @@ public abstract class AMQPClient extends AMQPObject {
 
     public Iterator<HealthReport> getAllHealthReports(){
         return healthReportQueue.iterator();
-    }
-
-    public byte[] call(String queue, String methodName, Resource resource) throws IOException, InterruptedException {
-        return call(queue, methodName, Resource.toByteArray(resource));
-    }
-
-    public byte[] call(String queue, String methodName, String resourceString) throws IOException, InterruptedException {
-        return call(queue, methodName, resourceString.getBytes());
-    }
-
-    public byte[] call(String queue, String methodName, byte[] methodArgs) throws IOException, InterruptedException {
-     return this.call(queue, methodName, methodArgs, null);
-    }
-
-    public byte[] call(String queue, String methodName, byte[] methodArgs, Map<String, Object> extraHeaders) throws IOException, InterruptedException {
-        final String corrId = UUID.randomUUID().toString();
-
-        // Setup the queue that the server will use to reply to the client.
-        String replyQueueName = getChannel().queueDeclare().getQueue();
-
-        Map<String, Object> methodHeaders = new HashMap<>();
-        methodHeaders.put("caller_prefix", this.getPrefix().toString());
-        methodHeaders.put("caller_id", this.getId());
-        if(extraHeaders != null) {
-            methodHeaders.putAll(extraHeaders);
-        }
-
-        // Create the properties that will be sent with the RPC call.
-        AMQP.BasicProperties props = new AMQP.BasicProperties
-                .Builder()
-                .correlationId(corrId)
-                .replyTo(replyQueueName)
-                .type("RPC_" + methodName)
-                .headers(methodHeaders)
-                .build();
-
-        logger.debug("Queue:       " + queue);
-        logger.debug("CorrID:      " + corrId);
-        logger.debug("Reply Queue: " + replyQueueName);
-        logger.debug("Method:      RPC_" + methodName);
-
-        logger.debug("Publishing the creation RPC...");
-        // Publish the RPC call to the queue.
-        getChannel().queueDeclare(queue, false, false, false, null);
-        getChannel().basicPublish(getExchange(), queue, props, methodArgs);
-        final BlockingQueue<Object> response = new ArrayBlockingQueue<>(1);
-
-        String ctag = getChannel().basicConsume(replyQueueName, true, (consumerTag, delivery) -> {
-            if (delivery.getProperties().getCorrelationId().equals(corrId)) {
-                response.offer(delivery.getBody());
-            }
-        }, consumerTag -> {
-        });
-
-        logger.debug("Waiting for response...");
-        byte[] result = (byte[])response.take();
-        getChannel().basicCancel(ctag);
-        return result;
-    }
-
-    private void startTimer(){
-        healthReportTimer = new Timer();
-        TimerTask task = new CheckHealth();
-        healthReportTimer.schedule(task, initialDelay, timerPeriod);
     }
 
     private class CheckHealth extends TimerTask
@@ -120,7 +103,8 @@ public abstract class AMQPClient extends AMQPObject {
     }
 
     private HealthReport reportHealth() throws Exception {
-        return HealthReport.fromByteArray(call(getRouteKey(), "reportHealth", ""));
+        return (HealthReport)invokeRPC(new RPCRequest("", getRouteKey(), "reportHealth"))
+                .getResponseObject();
     }
 
 }

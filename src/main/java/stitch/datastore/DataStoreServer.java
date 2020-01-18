@@ -1,113 +1,121 @@
 package stitch.datastore;
 
-import com.rabbitmq.client.AMQP;
 import org.apache.log4j.Logger;
 import org.bson.Document;
 import stitch.amqp.AMQPHandler;
-import stitch.amqp.HealthAlarm;
-import stitch.amqp.HealthReport;
-import stitch.amqp.rpc.RPCPrefix;
-import stitch.util.*;
+import stitch.amqp.AMQPPrefix;
+import stitch.amqp.rpc.RPCRequest;
+import stitch.amqp.rpc.RPCResponse;
+import stitch.amqp.rpc.RPCStatusCode;
+import stitch.resource.Resource;
 import stitch.amqp.AMQPServer;
-
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectOutputStream;
-import java.util.ArrayList;
-
-import static stitch.util.Serializer.bytesToString;
 
 public abstract class DataStoreServer extends AMQPServer implements DataStore {
 
     static final Logger logger = Logger.getLogger(DataStoreServer.class);
 
     protected Document providerArgs;
-    protected String dsUUID;
-    protected String dsType;
-    protected String dsClass;
 
     public DataStoreServer(Document providerArgs) throws Exception {
-        super(RPCPrefix.DATASTORE, providerArgs.getString("uuid"));
+        super(AMQPPrefix.DATASTORE, providerArgs.getString("uuid"));
 
         this.providerArgs = providerArgs;
-        dsUUID = providerArgs.getString("uuid");
-        dsType = providerArgs.getString("type");
-        dsClass = providerArgs.getString("class");
-
         this.addMetaData("type", providerArgs.getString("type"));
         this.addMetaData("class", providerArgs.getString("class"));
 
+        // TODO: Error handling here needs to be improved.
         setHandler(new AMQPHandler(this) {
             @Override
-            protected byte[] routeRPC(AMQP.BasicProperties messageProperties, byte[] messageBytes) {
-                switch (messageProperties.getType()) {
-                    case "RPC_createResource":
+            protected RPCResponse routeRPC(RPCRequest rpcRequest) {
+                switch (rpcRequest.getMethod()) {
+                    case "createResource":
                         try {
-                            Resource resource = Resource.fromByteArray(messageBytes);
-                            logger.info("Creating new resource with UUID: " + resource.getUUID());
-                            String resourceUUID = createResource(resource);
-                            if(resourceUUID == null) {
-                                return ResponseBytes.NULL();
-                            } else {
-                                return resourceUUID.getBytes();
-                            }
+                            logger.trace("Received request to create new resource");
+                            Resource resource = (Resource)rpcRequest.getArg("resource");
+                            logger.trace("Creating new resource with UUID: " + resource.getUUID());
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.OK)
+                                    .setResponseObject(createResource(resource));
                         } catch(Exception error){
-                            logger.info("Faied to create resource!", error);
-                            return ResponseBytes.ERROR();
+                            logger.error("Failed to create resource!", error);
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.ERROR)
+                                    .setStatusMessage(error.getMessage());
                         }
 
-                    case "RPC_updateResource":
+                    case "updateResource":
                         try {
-                            boolean updateResult = updateResource(Resource.fromByteArray(messageBytes));
-                            byte[] booleanBytes = new byte[1];
-                            booleanBytes[0] = (byte) (updateResult ? 1 : 0);
-                            return booleanBytes;
+                            logger.trace("Received request to update new resource");
+                            Resource resource = (Resource)rpcRequest.getArg("resource");
+                            logger.trace("Updating resource with UUID: " + resource.getUUID());
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.OK)
+                                    .setResponseObject(updateResource(resource));
                         } catch (Exception error){
                             logger.error("Failed to update resource!", error);
-                            return ResponseBytes.ERROR();
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.ERROR)
+                                    .setStatusMessage(error.getMessage());
                         }
 
-                    case "RPC_getResource":
+                    case "getResource":
                         try {
-                            Resource resource = getResource(bytesToString(messageBytes));
-                            if(resource == null){
-                                return ResponseBytes.NULL();
+                            logger.info("Received request to get a resource");
+                            String resourceId = rpcRequest.getStringArg("resourceId");
+                            logger.info("Getting a resource with UUID: " + resourceId);
+                            Resource resource = getResource(resourceId);
+                            if(resource == null) {
+                                logger.warn(String.format("Resource %s not found.", resourceId));
+                                return rpcRequest.createResponse()
+                                        .setStatusCode(RPCStatusCode.MISSING);
                             }
-                            return Resource.toByteArray(resource);
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.OK)
+                                    .setResponseObject(resource);
                         } catch ( Exception error) {
-                            logger.error(String.format("Failed to get Resource: %s", bytesToString(messageBytes)), error);
-                            return ResponseBytes.ERROR();
+                            logger.error("Failed to get resource", error);
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.ERROR)
+                                    .setStatusMessage(error.getMessage());
                         }
-                    case "RPC_deleteResource":
+
+                    case "deleteResource":
                         try {
-                            Resource resource = getResource(bytesToString(messageBytes));
-                            if(deleteResource(resource.getUUID())) {
-                                return ResponseBytes.OK();
+
+                            String resourceId = rpcRequest.getStringArg("resourceId");
+                            if(deleteResource(resourceId)) {
+                                return rpcRequest.createResponse()
+                                        .setStatusCode(RPCStatusCode.OK);
                             } else {
-                                return ResponseBytes.ERROR();
+                                logger.warn(String.format("Resource %s not found.", resourceId));
+                                return rpcRequest.createResponse()
+                                        .setStatusCode(RPCStatusCode.MISSING)
+                                        .setStatusMessage("Resource not found.");
                             }
                         } catch ( Exception error) {
-                            logger.error(String.format("Failed to get Resource: %s",bytesToString(messageBytes)), error);
-                            return ResponseBytes.ERROR();
+                            logger.error(String.format("Failed to delete Resource", error));
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.ERROR)
+                                    .setStatusMessage(error.getMessage());
                         }
-                    case "RPC_listResources":
+
+                    case "listResources":
                         try {
-                            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                            ObjectOutputStream oos = new ObjectOutputStream(bos);
-                            oos.writeObject(listResources());
-                            oos.flush();
-                            byte[] resourceList= bos.toByteArray();
-                            if(resourceList == null){
-                                return ResponseBytes.NULL();
-                            } else {
-                                return resourceList;
-                            }
+                            return rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.OK)
+                                    .setResponseObject(listResources());
                         } catch(Exception error){
                             logger.error("Failed to list resources", error);
-                            return ResponseBytes.ERROR();
+                            return  rpcRequest.createResponse()
+                                    .setStatusCode(RPCStatusCode.ERROR)
+                                    .setStatusMessage(error.getMessage());
                         }
+
                     default:
-                        logger.error("Failed to match RPC method " + messageProperties.getType());
-                        return ResponseBytes.ERROR();
+                        logger.error("Failed to match RPC method: " + rpcRequest.getMethod());
+                        return rpcRequest.createResponse()
+                                .setStatusCode(RPCStatusCode.MISSING)
+                                .setStatusMessage("Failed to match RPC method: " + rpcRequest.getMethod());
                 }
             }
         });
@@ -121,4 +129,12 @@ public abstract class DataStoreServer extends AMQPServer implements DataStore {
     }
 
     public abstract void connect();
+
+    public String getStoreType(){
+        return this.getMetaString("type");
+    }
+
+    public String getStoreClass(){
+        return this.getMetaString("class");
+    }
 }

@@ -8,7 +8,7 @@ import io.redisearch.Schema;
 import org.apache.log4j.Logger;
 
 import stitch.amqp.HealthReport;
-import stitch.util.Resource;
+import stitch.resource.Resource;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -84,25 +84,29 @@ public class RedisAggregatorServer extends AggregatorServer implements Aggregato
     }
 
     @Override
-    public void updateResource(Resource resource) {
+    public boolean updateResource(Resource resource) {
         try {
-            if (providerClients.get(getResourceProviderId(resource.getUUID())).updateResource(resource))
+            if (providerClients.get(getResourceProviderId(resource.getUUID())).updateResource(resource)) {
                 registerResource(getResourceProviderId(resource.getUUID()), resource);
+                return true;
+            }
         }catch (Exception error){
+            logger.error("Encountered failure while updating resource. Resource will be removed from cache.", error);
             client.deleteDocument(resource.getUUID());
         }
+        return false;
     }
 
     @Override
-    public void deleteResource(String resourceId) {
+    public boolean deleteResource(String resourceId) {
         try {
-            if (providerClients.get(getResourceProviderId(resourceId)).deleteResource(resourceId)) {
-                client.deleteDocument(resourceId);
-            }
+            if (providerClients.get(getResourceProviderId(resourceId)).deleteResource(resourceId))
+                return client.deleteDocument(resourceId);
         } catch (Exception error) {
             logger.error("Encountered failure while deleting resource. Resource will be removed from cache.", error);
             client.deleteDocument(resourceId);
         }
+        return false;
     }
 
     @Override

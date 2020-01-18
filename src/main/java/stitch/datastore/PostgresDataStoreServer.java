@@ -2,7 +2,7 @@ package stitch.datastore;
 
 import org.bson.Document;
 import stitch.amqp.HealthReport;
-import stitch.util.Resource;
+import stitch.resource.Resource;
 
 public class PostgresDataStoreServer extends DataStoreServer {
 

@@ -1,8 +1,5 @@
 package stitch.amqp;
 
-import org.apache.log4j.Logger;
-import stitch.amqp.rpc.RPCStats;
-
 import java.io.*;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -17,19 +14,19 @@ public class HealthReport implements Serializable {
     private boolean isNodeHealthy;
     private String nodeId;
     private long nodeUptime;
-    private RPCStats rpcStats;
+    private AMQPStats amqpStats;
     private ArrayList<HealthAlarm> alarms = new ArrayList<>();
     private HashMap<String, Object> extraData = new HashMap<>();
 
-    public HealthReport(boolean nodeHealthy, String nodeId, long nodeUptime, List<HealthAlarm> healthAlarms, RPCStats rpcStats){
+    public HealthReport(boolean nodeHealthy, String nodeId, long nodeUptime, List<HealthAlarm> healthAlarms, AMQPStats amqpStats){
         this.reportTime = Instant.now().toEpochMilli();
         this.isNodeHealthy = nodeHealthy;
         this.nodeId = nodeId;
         this.nodeUptime = nodeUptime;
         if(healthAlarms != null)
             this.alarms.addAll(healthAlarms);
-        if(rpcStats != null)
-            this.rpcStats = rpcStats;
+        if(amqpStats != null)
+            this.amqpStats = amqpStats;
     }
 
     public HealthReport(boolean nodeHealthy, String nodeId, long nodeUptime){
@@ -40,8 +37,8 @@ public class HealthReport implements Serializable {
         this(nodeHealthy, nodeId, nodeUptime, healthAlarms, null);
     }
 
-    public HealthReport(boolean nodeHealthy, String nodeId, long nodeUptime, RPCStats rpcStats){
-        this(nodeHealthy, nodeId, nodeUptime, null, rpcStats);
+    public HealthReport(boolean nodeHealthy, String nodeId, long nodeUptime, AMQPStats amqpStats){
+        this(nodeHealthy, nodeId, nodeUptime, null, amqpStats);
     }
 
     public long getReportTime(){
@@ -89,10 +86,10 @@ public class HealthReport implements Serializable {
     }
 
     /* RPC STATS */
-    public RPCStats getRpcStats() { return rpcStats; }
+    public AMQPStats getAmqpStats() { return amqpStats; }
 
-    public HealthReport setRpcStats(RPCStats rpcStats) {
-        this.rpcStats = rpcStats;
+    public HealthReport setAmqpStats(AMQPStats amqpStats) {
+        this.amqpStats = amqpStats;
         return this;
     }
 

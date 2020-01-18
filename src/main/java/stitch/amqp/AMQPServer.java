@@ -2,7 +2,6 @@ package stitch.amqp;
 
 import com.rabbitmq.client.DeliverCallback;
 import org.apache.log4j.Logger;
-import stitch.amqp.rpc.RPCPrefix;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -17,7 +16,7 @@ public abstract class AMQPServer extends AMQPObject {
     private ArrayList<HealthAlarm> alarms = new ArrayList<>();
     private DeliverCallback deliverCallback;
 
-    public AMQPServer(RPCPrefix prefix, String id) {
+    public AMQPServer(AMQPPrefix prefix, String id) {
         super(prefix, id);
         metaData.put("prefix", prefix);
         metaData.put("uuid", id);

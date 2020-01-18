@@ -1,6 +1,6 @@
-package stitch.util;
+package stitch.resource;
 
-import org.apache.log4j.Logger;
+import stitch.util.Serializer;
 
 import java.io.*;
 import java.time.Instant;
@@ -60,7 +60,7 @@ public class Resource implements Serializable {
     }
 
     public static Resource fromByteArray(byte[] resourceBytes) throws IOException, ClassNotFoundException {
-        return (Resource)Serializer.bytesToObject(resourceBytes);
+        return (Resource) Serializer.bytesToObject(resourceBytes);
     }
 
     public static byte[] toByteArray(Resource resource) throws IOException {

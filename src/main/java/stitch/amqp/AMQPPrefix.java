@@ -1,11 +1,11 @@
-package stitch.amqp.rpc;
+package stitch.amqp;
 
-public enum RPCPrefix {
+public enum AMQPPrefix {
     DATASTORE ("datastore"),
     AGGREGATOR ("aggregator");
 
     private final String name;
-    private RPCPrefix(String s) { name = s; }
+    private AMQPPrefix(String s) { name = s; }
     public boolean equalsName(String otherName) { return name.equals(otherName); }
     public String toString() { return this.name; }
 }

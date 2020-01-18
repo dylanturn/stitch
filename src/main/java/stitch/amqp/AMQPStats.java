@@ -1,13 +1,15 @@
-package stitch.amqp.rpc;
+package stitch.amqp;
 
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.javatuples.Triplet;
+import stitch.amqp.rpc.RPCRecord;
+import stitch.amqp.rpc.RPCStatusCode;
 import stitch.util.Serializer;
 
 import java.io.*;
 import java.util.Iterator;
 
-public class RPCStats implements Serializable {
+public class AMQPStats implements Serializable {
 
     private static final long serialVersionUID = 1986L;
 
@@ -25,7 +27,7 @@ public class RPCStats implements Serializable {
     // Circular buffer of the last n number of RPC calls.
     private CircularFifoQueue<RPCRecord> callRecordQueue;
 
-    public RPCStats(int queueLength) {
+    public AMQPStats(int queueLength) {
         callRecordQueue = new CircularFifoQueue<>(queueLength);
     }
 
@@ -57,12 +59,12 @@ public class RPCStats implements Serializable {
         callRecordQueue.add(callRecord);
     }
 
-    public static RPCStats fromByteArray(byte[] rpcStatsbytes) throws IOException, ClassNotFoundException {
-        return (RPCStats)Serializer.bytesToObject(rpcStatsbytes);
+    public static AMQPStats fromByteArray(byte[] rpcStatsbytes) throws IOException, ClassNotFoundException {
+        return (AMQPStats)Serializer.bytesToObject(rpcStatsbytes);
     }
 
-    public static byte[] toByteArray(RPCStats rpcStats) throws IOException {
-        return Serializer.objectToBytes(rpcStats);
+    public static byte[] toByteArray(AMQPStats amqpStats) throws IOException {
+        return Serializer.objectToBytes(amqpStats);
     }
 
 }

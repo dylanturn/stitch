@@ -1,14 +1,18 @@
 package stitch.amqp.rpc;
 
+import stitch.util.Serializer;
+
+import java.io.IOException;
 import java.util.HashMap;
 
 public class RPCRequest extends RPCObject {
 
-
     private HashMap<String, Object> arguments = new HashMap<>();
 
     public RPCRequest(String source, String destination, String method) {
-        super(source, destination, method);
+        setSource(source);
+        setDestination(destination);
+        setMethod(method);
     }
 
     public RPCRequest(String source, String destination, String method, HashMap<String, Object> arguments){
@@ -16,17 +20,9 @@ public class RPCRequest extends RPCObject {
         this.putAllArg(arguments);
     }
 
-    public RPCResponse createResponse(RPCStatusCode rpcStatusCode){
-        completeRequest(rpcStatusCode);
-        return new RPCResponse(this);
-    }
-
-    public RPCResponse createResponse(RPCStatusCode rpcStatusCode, byte[] responseBytes){
-        return createResponse(rpcStatusCode).setResponseBytes(responseBytes);
-    }
-
-    public RPCResponse createResponse(RPCStatusCode rpcStatusCode, Object responseObject){
-        return createResponse(rpcStatusCode).setResponseObject(responseObject);
+    public RPCResponse createResponse(){
+        // We flip the source and destination since we're sending it back.
+        return new RPCResponse(this.getDestination(), this.getSource(), this.getMethod());
     }
 
     /* -- RPC ARGS -- */
@@ -39,9 +35,23 @@ public class RPCRequest extends RPCObject {
         arguments.put(key, value);
         return this;
     }
+
     public RPCRequest putAllArg(HashMap<String, Object> extraArguments) {
         arguments.putAll(extraArguments);
         return this;
+    }
+
+    /* -- SERIALIZATION -- */
+    public static RPCRequest fromByteArray(byte[] rpcRequestBytes) throws IOException {
+        try {
+            return (RPCRequest) Serializer.bytesToObject(rpcRequestBytes);
+        } catch(ClassNotFoundException error) {
+            return null;
+        }
+    }
+
+    public static byte[] toByteArray(RPCRequest rpcRequest) throws IOException {
+        return Serializer.objectToBytes(rpcRequest);
     }
 
 }

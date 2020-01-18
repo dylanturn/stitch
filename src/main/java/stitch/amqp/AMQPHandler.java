@@ -3,7 +3,8 @@ package stitch.amqp;
 import com.rabbitmq.client.*;
 import org.apache.log4j.Logger;
 import stitch.amqp.rpc.RPCRecord;
-import stitch.amqp.rpc.RPCStats;
+import stitch.amqp.rpc.RPCRequest;
+import stitch.amqp.rpc.RPCResponse;
 import stitch.amqp.rpc.RPCStatusCode;
 
 import java.io.IOException;
@@ -29,67 +30,56 @@ public abstract class AMQPHandler implements DeliverCallback {
         Object monitor = amqpServer.getMonitor();
         String exchange = amqpServer.getExchange();
 
+        // Get the RPC request from the amqp body. Route it, fulfill it, then get and return the response bytes.
         logger.trace("RPC Request received!");
-        // Get the message headers and body.
-        AMQP.BasicProperties messageProperties = delivery.getProperties();
-        byte[] messageBytes = delivery.getBody();
+        RPCRequest rpcRequest = RPCRequest.fromByteArray(delivery.getBody());
+        byte[] rpcResponseBytes = RPCResponse.toByteArray(routeInternalRPC(rpcRequest));
 
-        // Create the RPC record used to track the RPC performance.
-        logger.trace("RPC Type: " + messageProperties.getType());
-        LongString longCallerId = (LongString)messageProperties.getHeaders().get("caller_id");
-        RPCRecord rpcRecord = amqpServer.startRPC(longCallerId.toString(), delivery.getProperties().getType());
-
-        byte[] responseBytes = null;
-
-        try {
-
-            // First try route the RPC call internally.
-            // If this isn't an internal call it should default to the abstract routeRPC method.
-            responseBytes = routeInternalRPC(delivery.getProperties(), messageBytes);
-
-        } catch (RuntimeException error) {
-            /* End the RPC Call with the status code ERROR. */
-            logger.error("Failed to handle RPC call!", error);
-            rpcRecord.endCall(RPCStatusCode.ERROR);
-
-        } finally {
-            // Publish the reply to the caller and ack the message.
-            channel.basicPublish("", delivery.getProperties().getReplyTo(), replyProps, responseBytes);
-            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-            /* End the RPC Call with the status code OK. */
-            rpcRecord.endCall(RPCStatusCode.OK);
-            synchronized (monitor) {
-                // Honestly not sure why I'm expected to do this, seem like a locking thing?
-                // Could probably figure it out but it's what's documented and it works, so meh (for now, I promise)
-                monitor.notify();
-            }
+        // Publish the reply to the caller and ack the message.
+        channel.basicPublish("", delivery.getProperties().getReplyTo(), replyProps, rpcResponseBytes);
+        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+        synchronized (monitor) {
+            // Honestly not sure why I'm expected to do this, seem like a locking thing?
+            // Could probably figure it out but it's what's documented and it works, so meh (for now, I promise)
+            monitor.notify();
         }
     }
 
-    protected abstract byte[] routeRPC(AMQP.BasicProperties messageProperties, byte[] messageBytes);
+    protected abstract RPCResponse routeRPC(RPCRequest rpcRequest);
 
-    private byte[] routeInternalRPC(AMQP.BasicProperties messageProperties, byte[] messageBytes){
-        switch (messageProperties.getType()) {
-            case "RPC_getRPCStats":
+    private RPCResponse routeInternalRPC(RPCRequest rpcRequest){
+        switch (rpcRequest.getMethod()) {
+
+            case "getRPCStats":
                 try {
-                    return RPCStats.toByteArray(amqpServer.getRpcStats());
+                    return rpcRequest.createResponse()
+                            .setStatusCode(RPCStatusCode.OK)
+                            .setResponseObject(amqpServer.getAmqpStats());
                 } catch (IOException error) {
-                    logger.error("Failed to get RPC stats!", error);
-                    return null;
+                    logger.error("Failed to get RPC Stats", error);
+                    return rpcRequest.createResponse()
+                            .setStatusCode(RPCStatusCode.ERROR)
+                            .setStatusMessage(error.getMessage());
                 }
-            case "RPC_reportHealth":
+
+            case "reportHealth":
                 try {
-                    logger.trace("HeathReport requested");
-                    return HealthReport.toByteArray(amqpServer.reportInternalHealth()
-                                                        .addExtra(amqpServer.getAllMetaData())
-                                                        .addAllAlarms(amqpServer.getAlarms())
-                                                        .setRpcStats(amqpServer.getRpcStats()));
-                } catch (Exception error){
-                    logger.error("Failed to generate health report", error);
-                    return null;
+                    HealthReport healthReport = amqpServer.reportInternalHealth()
+                            .addExtra(amqpServer.getAllMetaData())
+                            .addAllAlarms(amqpServer.getAlarms())
+                            .setAmqpStats(amqpServer.getAmqpStats());
+                    return rpcRequest.createResponse()
+                            .setStatusCode(RPCStatusCode.OK)
+                            .setResponseBytes(HealthReport.toByteArray(healthReport));
+                } catch (IOException error) {
+                    logger.error("Failed to report health", error);
+                    return rpcRequest.createResponse()
+                            .setStatusCode(RPCStatusCode.ERROR)
+                            .setStatusMessage(error.getMessage());
                 }
+
             default:
-                return routeRPC(messageProperties, messageBytes);
+                return routeRPC(rpcRequest);
         }
     }
 }
