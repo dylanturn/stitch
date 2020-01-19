@@ -11,3 +11,13 @@ java -cp "target/*:target/libs/*" stitch.stitch.DataStoreMain
 # Starting the Aggregator service
 java -cp "target/*:target/libs/*" stitch.AggregatorMain
 ```
+
+```bash
+# List available datastores 
+./stitchcli list datastores
+```
+
+```bash
+# List available resources 
+./stitchcli list resources
+```
