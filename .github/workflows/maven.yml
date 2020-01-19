@@ -4,7 +4,7 @@ on:
   push:
     branches: 
       - master
-        - 
+
 jobs:
   build:
 
@@ -19,7 +19,8 @@ jobs:
     - name: Build with Maven
       run: mvn -B package --file pom.xml
       
-    - run: zip -r stitch_artifact.zip ./target/stitch-*.jar ./target/libs
+    - name: Package up the libraries into an archive.
+      run: zip -r stitch_artifact.zip ./target/stitch-*.jar ./target/libs
       
     - uses: actions/upload-artifact@v1
       with:
