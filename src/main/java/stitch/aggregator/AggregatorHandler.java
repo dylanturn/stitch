@@ -20,7 +20,6 @@ public class AggregatorHandler extends AMQPHandler {
 
     @Override
     protected RPCResponse routeRPC(RPCRequest rpcRequest) {
-
         switch (rpcRequest.getMethod()) {
 
             case "createResource":

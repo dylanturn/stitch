@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-public class RedisAggregatorServer extends AggregatorServer implements Aggregator {
+public class RedisAggregatorServer extends AggregatorServer {
 
     static final Logger logger = Logger.getLogger(RedisAggregatorServer.class);
     private Client client;

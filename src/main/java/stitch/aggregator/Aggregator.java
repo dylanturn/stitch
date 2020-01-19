@@ -1,6 +1,7 @@
 package stitch.aggregator;
 
 import stitch.amqp.HealthReport;
+import stitch.datastore.DataStore;
 import stitch.resource.Resource;
 
 import java.util.ArrayList;

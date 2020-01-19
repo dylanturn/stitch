@@ -63,4 +63,8 @@ public abstract class AggregatorServer extends AMQPServer implements Aggregator,
     }
 
     public abstract void connect();
+
 }
+
+
+

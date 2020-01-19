@@ -9,6 +9,7 @@ public class RPCRequest extends RPCObject {
 
     private HashMap<String, Object> arguments = new HashMap<>();
 
+
     public RPCRequest(String source, String destination, String method) {
         setSource(source);
         setDestination(destination);
@@ -31,6 +32,15 @@ public class RPCRequest extends RPCObject {
     public boolean getBoolArg(String key){ return (boolean)getArg(key); }
     public int getIntArg(String key){ return (int)getArg(key); }
     public long getLongArg(String key){ return (long)getArg(key); }
+
+    public Object[] getArgValues(){
+        return null;
+    }
+
+    public Class[] getArgClasses(){
+        return null;
+    }
+
     public RPCRequest putArg(String key, Object value) {
         arguments.put(key, value);
         return this;
