@@ -15,6 +15,7 @@ import stitch.aggregator.RedisAggregatorServer;
 import stitch.aggregator.Aggregator;
 import stitch.util.properties.MongoPropertyStore;
 import stitch.util.properties.PropertyStore;
+import stitch.util.properties.StitchProperty;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -57,7 +58,7 @@ public class AggregatorMain {
 
         // Create and start an instance of each aggregator.
         for(Document document : aggregators){
-            AggregatorServer aggregator = new RedisAggregatorServer(document, providers);
+            AggregatorServer aggregator = new RedisAggregatorServer(null, null, null);
             Thread aggregatorThread = new Thread(aggregator);
             aggregatorThreads.put(document.getString("uuid"), aggregatorThread);
             aggregatorHash.put(document.getString("uuid"), aggregator);

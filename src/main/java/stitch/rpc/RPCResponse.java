@@ -1,4 +1,4 @@
-package stitch.amqp.rpc;
+package stitch.rpc;
 
 import stitch.util.Serializer;
 

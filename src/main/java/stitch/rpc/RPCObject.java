@@ -1,4 +1,4 @@
-package stitch.amqp.rpc;
+package stitch.rpc;
 
 import java.io.Serializable;
 import java.time.Instant;
@@ -11,6 +11,7 @@ public abstract class RPCObject implements Serializable {
     private String uuid;
     private String source;
     private String destination;
+    private Class<?> methodClass;
     private String method;
     private long requestStart;
     private long requestEnd;
@@ -20,13 +21,10 @@ public abstract class RPCObject implements Serializable {
         this.uuid = UUID.randomUUID().toString().replace("-", "");
     }
 
-    public void completeRPC() {
-        this.requestEnd = Instant.now().toEpochMilli();
-    }
-
     public String getUUID() { return uuid; }
     public String getSource() { return source; }
     public String getDestination() { return destination; }
+    public Class<?> getMethodClass() { return methodClass; }
     public String getMethod() { return method; }
     public long getRequestStart() { return requestStart; }
     public long getRequestEnd() { return requestEnd; }
@@ -37,6 +35,10 @@ public abstract class RPCObject implements Serializable {
     }
     public RPCObject setDestination(String rpcDestination){
         destination = rpcDestination;
+        return this;
+    }
+    public RPCObject setMethodClass(Class<?> methodClass){
+        this.methodClass = methodClass;
         return this;
     }
     public RPCObject setMethod(String rpcMethod){

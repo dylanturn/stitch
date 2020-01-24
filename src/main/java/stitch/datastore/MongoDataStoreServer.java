@@ -7,8 +7,8 @@ import com.mongodb.client.MongoDatabase;
 import org.apache.log4j.Logger;
 import org.bson.Document;
 import org.bson.types.Binary;
-import stitch.amqp.HealthReport;
 import stitch.resource.Resource;
+import stitch.util.properties.StitchProperty;
 
 import java.util.*;
 
@@ -20,21 +20,21 @@ public class MongoDataStoreServer extends DataStoreServer {
     static final Logger logger = Logger.getLogger(MongoDataStoreServer.class);
 
     private String dsURI;
-    private String dsProtocol = providerArgs.getString("protocol");
-    private String dsHost = providerArgs.getString("host");
-    private int dsPort = providerArgs.getInteger("port");
-    private String dsUsername = providerArgs.getString("username");
-    private String dsPassword = providerArgs.getString("password");
-    private String dsOptions = providerArgs.getString("options");
-    private String database = providerArgs.getString("database");
-    private String collection = providerArgs.getString("collection");
+    private String dsProtocol = rpcServerProperty.getPropertyString("protocol");
+    private String dsHost = rpcServerProperty.getPropertyString("host");
+    private int dsPort = rpcServerProperty.getPropertyInt("port");
+    private String dsUsername = rpcServerProperty.getPropertyString("username");
+    private String dsPassword = rpcServerProperty.getPropertyString("password");
+    private String dsOptions = rpcServerProperty.getPropertyString("options");
+    private String database = rpcServerProperty.getPropertyString("database");
+    private String collection = rpcServerProperty.getPropertyString("collection");
 
     private MongoClient mongoClient;
     private MongoDatabase mongoDatabase;
     private MongoCollection<Document> mongoCollection;
 
-    public MongoDataStoreServer(Document providerArgs) throws Exception {
-        super(providerArgs);
+    public MongoDataStoreServer(StitchProperty dataStoreProperty, StitchProperty transportProperty) throws Exception {
+        super(dataStoreProperty, transportProperty);
     }
 
     private static Document fromResource(Resource resource) {
@@ -78,9 +78,9 @@ public class MongoDataStoreServer extends DataStoreServer {
     public void connect() {
 
         logger.info("Start a new DataStore instance...");
-        logger.info("UUID:  " + getId());
-        logger.info("Class: " + getStoreClass());
-        logger.info("Type: " + getStoreType());
+        logger.info("UUID:  " + rpcServerProperty.getObjectId());
+        logger.info("Class: " + rpcServerProperty.getObjectClass().toString());
+        logger.info("Type: " + rpcServerProperty.getObjectType().toString());
         logger.info("Host: " + dsHost);
         logger.info("Options: " + dsOptions);
         logger.info("Database: " + database);
@@ -97,10 +97,6 @@ public class MongoDataStoreServer extends DataStoreServer {
             logger.error(error);
         }
     }
-
-    // TODO: Make sure the node is actually healthy
-    @Override
-    public void reportHealth(HealthReport healthReport) {}
 
     @Override
     public String createResource(Resource resource) {
@@ -162,8 +158,10 @@ public class MongoDataStoreServer extends DataStoreServer {
         return resourceList;
     }
 
+    // TODO: Implement some kind of resource search logic.
     @Override
-    public void shutdown() {
-        logger.info("Shutting down aggregator client...");
+    public ArrayList<Resource> findResources(String filter) {
+        return listResources();
     }
+
 }

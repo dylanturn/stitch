@@ -1,8 +1,8 @@
-package stitch.amqp;
+package stitch.rpc.transport.metrics;
 
 import java.io.Serializable;
 
-public class HealthAlarm implements Serializable {
+public class RpcEndpointAlarm implements Serializable {
 
     private static final long serialVersionUID = 6894L;
 
@@ -11,7 +11,7 @@ public class HealthAlarm implements Serializable {
     private String alarmName;
     private String alarmDescription;
 
-    public HealthAlarm(String subjectId, AlarmSeverity severity, String alarmName, String alarmDescription) {
+    public RpcEndpointAlarm(String subjectId, AlarmSeverity severity, String alarmName, String alarmDescription) {
         this.subjectId = subjectId;
         this.severity = severity;
         this.alarmName = alarmName;

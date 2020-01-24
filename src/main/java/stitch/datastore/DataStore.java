@@ -2,6 +2,8 @@ package stitch.datastore;
 
 import stitch.resource.Resource;
 
+import java.util.ArrayList;
+
 public interface DataStore {
     String createResource(Resource resource) throws Exception;
     boolean updateResource(Resource resource) throws Exception;
@@ -9,4 +11,5 @@ public interface DataStore {
     boolean deleteResource(String resourceId) throws Exception;
     Iterable<Resource> listResources();
     Iterable<Resource> listResources(boolean includeData);
+    ArrayList<Resource> findResources(String filter);
 }

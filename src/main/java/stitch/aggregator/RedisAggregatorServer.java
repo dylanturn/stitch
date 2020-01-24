@@ -7,8 +7,8 @@ import io.redisearch.Query;
 import io.redisearch.Schema;
 import org.apache.log4j.Logger;
 
-import stitch.amqp.HealthReport;
 import stitch.resource.Resource;
+import stitch.util.properties.StitchProperty;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,43 +17,47 @@ import java.util.Map;
 public class RedisAggregatorServer extends AggregatorServer {
 
     static final Logger logger = Logger.getLogger(RedisAggregatorServer.class);
-    private Client client;
 
-    private String agClass = aggregatorArgs.getString("class");
-    private String agType = aggregatorArgs.getString("type");
-    private String agUUID = aggregatorArgs.getString("uuid");
-    private String agHost = aggregatorArgs.getString("host");
-    private int agPort = aggregatorArgs.getInteger("port");
-    private String agIndexPrefix = aggregatorArgs.getString("indexPrefix");
-    private int agTimeout = aggregatorArgs.getInteger("timeout");
-    private int agPoolSize = aggregatorArgs.getInteger("poolSize");
-    private String agPassword = aggregatorArgs.getString("password");
-    private String agIndex;
+    private Client redisearchClient;
+    private Iterable<StitchProperty> dataStoreProperties;
 
-    public RedisAggregatorServer(org.bson.Document aggregatorArgs, Iterable<org.bson.Document> providerDocuments) throws Exception {
-        super(aggregatorArgs, providerDocuments);
+    private String redisearchHost;
+    private int redisearchPort;
+    private String redisearchIndexPrefix;
+    private int redisearchPoolSize;
+    private String redisearchPassword;
+    private String redisearchIndex;
+
+    public RedisAggregatorServer(StitchProperty aggregatorProperty, StitchProperty transportProperty, Iterable<StitchProperty> dataStoreProperties) throws IllegalAccessException, InstantiationException {
+        super(aggregatorProperty, transportProperty, dataStoreProperties);
+
+        redisearchHost = aggregatorProperty.getPropertyString("host");
+        redisearchPort = aggregatorProperty.getPropertyInt("port");
+        redisearchIndexPrefix = aggregatorProperty.getPropertyString("indexPrefix");
+        redisearchPoolSize = aggregatorProperty.getPropertyInt("poolSize");
+        redisearchPassword = aggregatorProperty.getPropertyString("password");
+        redisearchIndex = String.format("%s_%s", redisearchIndexPrefix, aggregatorProperty.getObjectId());
+
     }
 
     @Override
     public void connect() {
 
-        agIndex = String.format("%s_%s", agIndexPrefix, agUUID);
         logger.info("Start a new Aggregator instance...");
-        logger.info("Class: " + agClass);
-        logger.info("Type: " + agType);
-        logger.info("UUID:  " + agUUID);
-        logger.info("Host: " + agHost);
-        logger.info("Port: " + agPort);
-        logger.info("Index: " + agIndex);
-        logger.info("Timeout: " + agTimeout);
-        logger.info("PoolSize: " + agPoolSize);
+        logger.info("Class: " + rpcServerProperty.getObjectClass().toString());
+        logger.info("Type: " + rpcServerProperty.getObjectType().toString());
+        logger.info("UUID:  " + rpcServerProperty.getObjectId());
+        logger.info("Host: " + redisearchHost);
+        logger.info("Port: " + redisearchPort);
+        logger.info("Index: " + redisearchIndex);
+        logger.info("PoolSize: " + redisearchPoolSize);
 
-        this.client = new Client(agIndex,agHost,agPort);
+        this.redisearchClient = new Client(redisearchIndex, redisearchHost, redisearchPort);
 
         // This is the wrong way to do this, but I can't find a better way.
         // TODO: Find a better way to figure out if an index needs to be created.
         try {
-            client.getInfo();
+            redisearchClient.getInfo();
         } catch (Exception error){
             Schema schema = new Schema()
                     .addTextField("datastoreId", 4.0)
@@ -61,12 +65,9 @@ public class RedisAggregatorServer extends AggregatorServer {
                     .addNumericField("created")
                     .addTextField("data_type", 1.0)
                     .addNumericField("data_size");
-            client.createIndex(schema, Client.IndexOptions.defaultOptions());
+            redisearchClient.createIndex(schema, Client.IndexOptions.defaultOptions());
         }
     }
-
-    @Override
-    public void reportHealth(HealthReport healthReport) { }
 
     @Override
     public String createResource(Resource resource) {
@@ -78,7 +79,7 @@ public class RedisAggregatorServer extends AggregatorServer {
         try {
             return providerClients.get(getResourceProviderId(resourceId)).getResource(resourceId);
         } catch (Exception error){
-            client.deleteDocument(resourceId);
+            redisearchClient.deleteDocument(resourceId);
         }
         return null;
     }
@@ -92,7 +93,7 @@ public class RedisAggregatorServer extends AggregatorServer {
             }
         }catch (Exception error){
             logger.error("Encountered failure while updating resource. Resource will be removed from cache.", error);
-            client.deleteDocument(resource.getUUID());
+            redisearchClient.deleteDocument(resource.getUUID());
         }
         return false;
     }
@@ -101,10 +102,10 @@ public class RedisAggregatorServer extends AggregatorServer {
     public boolean deleteResource(String resourceId) {
         try {
             if (providerClients.get(getResourceProviderId(resourceId)).deleteResource(resourceId))
-                return client.deleteDocument(resourceId);
+                return redisearchClient.deleteDocument(resourceId);
         } catch (Exception error) {
             logger.error("Encountered failure while deleting resource. Resource will be removed from cache.", error);
-            client.deleteDocument(resourceId);
+            redisearchClient.deleteDocument(resourceId);
         }
         return false;
     }
@@ -113,7 +114,7 @@ public class RedisAggregatorServer extends AggregatorServer {
     public ArrayList<Resource> findResources(String filter) {
         try {
             ArrayList<Resource> resourceList = new ArrayList<>();
-            for (Document document : client.search(new Query(filter)).docs) {
+            for (Document document : redisearchClient.search(new Query(filter)).docs) {
                 resourceList.add(providerClients.get(document.getString("datastoreId")).getResource(document.getString("uuid")));
             }
             return resourceList;
@@ -127,7 +128,7 @@ public class RedisAggregatorServer extends AggregatorServer {
     public ArrayList<Resource> listResources() {
         Query query = new Query("*").limitFields("datastoreId", "uuid", "data_type", "data_size", "created");
         ArrayList<Resource> resourceList = new ArrayList<>();
-        for(Document document : client.search(query).docs){
+        for(Document document : redisearchClient.search(query).docs){
             logger.info("Found Resource: " + document.toString());
             String uuid = document.getString("uuid");
             logger.info("Found Resource: " + uuid);
@@ -142,6 +143,12 @@ public class RedisAggregatorServer extends AggregatorServer {
         return resourceList;
     }
 
+    // TODO: This should work the way it implies.
+    @Override
+    public Iterable<Resource> listResources(boolean includeData) {
+        return listResources();
+    }
+
     @Override
     public void registerResource(String datastoreId, Resource resource) {
         logger.info(String.format("Registering resource %s in datastore %s with redisearch cache", resource.getUUID(), datastoreId));
@@ -151,19 +158,14 @@ public class RedisAggregatorServer extends AggregatorServer {
         resourceDocument.putAll(resource.getMetaMap());
         logger.info(String.format("DatastoreId: %s", resourceDocument.get("datastoreId")));
         logger.info(String.format("ResourceId: %s", resourceDocument.get("uuid")));
-        client.addDocument(resource.getUUID(), 0.5, resourceDocument, false, true, null);
+        redisearchClient.addDocument(resource.getUUID(), 0.5, resourceDocument, false, true, null);
     }
 
     protected String getResourceProviderId(String resourceId) {
         String queryString = String.format("@uuid:%s", resourceId);
         Query query = new Query(queryString);
-        SearchResult searchResult = client.search(query);
+        SearchResult searchResult = redisearchClient.search(query);
         return searchResult.docs.get(0).getString("datastoreId");
-    }
-
-    @Override
-    public void shutdown() {
-        logger.info("Shutting down aggregator client...");
     }
 
 }

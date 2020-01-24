@@ -9,9 +9,10 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import stitch.aggregator.AggregatorClient;
-import stitch.amqp.HealthReport;
-import stitch.amqp.AMQPStats;
+import stitch.rpc.transport.metrics.RpcEndpointReport;
+import stitch.rpc.transport.metrics.RpcEndpointReporter;
 import stitch.resource.Resource;
+import stitch.util.properties.StitchProperty;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -77,7 +78,8 @@ class StitchCLI implements Callable<Integer> {
                 aggregatorId = properties.getProperty("aggregator");
             }
 
-            aggregatorClient = new AggregatorClient(aggregatorId);
+            // TODO: Fix this
+            aggregatorClient = new AggregatorClient(new StitchProperty(), new StitchProperty());
 
             switch (action) {
                 case "list":
@@ -120,10 +122,10 @@ class StitchCLI implements Callable<Integer> {
 
     private void statsAndPrint(){
         System.out.println("STATS?!");
-        AMQPStats amqpStats = aggregatorClient.getAmqpStats();
-        System.out.println("Total Calls:   " + amqpStats.getTotalCalls());
-        System.out.println("Success Calls: " + amqpStats.getTotalCalls());
-        System.out.println("Failed Calls:  " + amqpStats.getTotalCalls());
+       // RpcEndpointReporter rpcStats = aggregatorClient.getRpcStats();
+       // System.out.println("Total Calls:   " + rpcStats.getTotalCalls());
+       // System.out.println("Success Calls: " + rpcStats.getTotalCalls());
+       // System.out.println("Failed Calls:  " + rpcStats.getTotalCalls());
     }
 
     /*
@@ -134,12 +136,12 @@ class StitchCLI implements Callable<Integer> {
 
     private void listAndPrintDataStores(){
         logger.trace("Execute list and print.");
-        ArrayList<HealthReport> dataStoreHealthReports = aggregatorClient.listDataStores();
+        ArrayList<RpcEndpointReport> dataStoreHealthReports = aggregatorClient.listDataStores();
         printDataStoreTable(dataStoreHealthReports);
     }
 
-    private void printDataStoreTable(ArrayList<HealthReport> dataStoreHealthReports){
-        for(HealthReport healthReport : dataStoreHealthReports){
+    private void printDataStoreTable(ArrayList<RpcEndpointReport> dataStoreHealthReports){
+        for(RpcEndpointReport healthReport : dataStoreHealthReports){
             System.out.println(healthReport);
         }
         if(!quiet) {
@@ -149,7 +151,7 @@ class StitchCLI implements Callable<Integer> {
                 System.out.println(tableHeader);
             }
         }
-        for(HealthReport healthReport : dataStoreHealthReports) {
+        for(RpcEndpointReport healthReport : dataStoreHealthReports) {
             String storeId = healthReport.getNodeId();
             long storeUptime = healthReport.getNodeUptime();
             String storeType = (String)healthReport.getExtra().get("type");

@@ -1,48 +1,47 @@
 package stitch.datastore;
 
 import org.apache.log4j.Logger;
-import stitch.amqp.AMQPClient;
-import stitch.amqp.AMQPPrefix;
-import stitch.amqp.rpc.RPCRequest;
+import stitch.rpc.RPCRequest;
 import stitch.resource.Resource;
+import stitch.rpc.transport.RpcAbstractClient;
+import stitch.util.properties.StitchProperty;
 
 import java.util.ArrayList;
 
-public class DataStoreClient extends AMQPClient implements DataStore {
+public class DataStoreClient extends RpcAbstractClient implements DataStore {
 
     static final Logger logger = Logger.getLogger(DataStoreClient.class);
 
-
-    public DataStoreClient(String id) throws Exception {
-        super(AMQPPrefix.DATASTORE, id);
+    public DataStoreClient(StitchProperty dataStoreProperty, StitchProperty transportProperty) throws InstantiationException, IllegalAccessException {
+        super(dataStoreProperty, transportProperty);
     }
 
     @Override
     public String createResource(Resource resource) throws Exception  {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "createResource")
-                .putArg("resource", resource);
-        return (String)invokeRPC(rpcRequest).getResponseObject();
+        RPCRequest rpcRequest = new RPCRequest("", rpcClientProperty.getObjectId(), "createResource")
+                .putResourceArg(resource);
+        return (String)rpcClient.invokeRPC(rpcRequest).getResponseObject();
     }
 
     @Override
     public boolean updateResource(Resource resource) throws Exception {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "updateResource")
-                .putArg("resource", resource);
-        return (boolean)invokeRPC(rpcRequest).getResponseObject();
+        RPCRequest rpcRequest = new RPCRequest("", rpcClientProperty.getObjectId(), "updateResource")
+                .putResourceArg(resource);
+        return (boolean)rpcClient.invokeRPC(rpcRequest).getResponseObject();
     }
 
     @Override
     public Resource getResource(String resourceId) throws Exception {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "getResource")
-                .putArg("resourceId", resourceId);
-        return (Resource) invokeRPC(rpcRequest).getResponseObject();
+        RPCRequest rpcRequest = new RPCRequest("", rpcClientProperty.getObjectId(), "getResource")
+                .putStringArg(resourceId);
+        return (Resource) rpcClient.invokeRPC(rpcRequest).getResponseObject();
     }
 
     @Override
     public boolean deleteResource(String resourceId) throws Exception {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "deleteResource")
-                .putArg("resourceId", resourceId);
-        return (boolean)invokeRPC(rpcRequest).getResponseObject();
+        RPCRequest rpcRequest = new RPCRequest("", rpcClientProperty.getObjectId(), "deleteResource")
+                .putStringArg(resourceId);
+        return (boolean)rpcClient.invokeRPC(rpcRequest).getResponseObject();
     }
 
     @Override
@@ -52,23 +51,25 @@ public class DataStoreClient extends AMQPClient implements DataStore {
 
     @Override
     public ArrayList<Resource> listResources(boolean includeData) {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "listResources")
-                .putArg("includeData", includeData);
+        RPCRequest rpcRequest = new RPCRequest("", rpcClientProperty.getObjectId(), "listResources")
+                .putBoolArg(includeData);
         try{
-            return (ArrayList<Resource>)invokeRPC(rpcRequest).getResponseObject();
+            return (ArrayList<Resource>)rpcClient.invokeRPC(rpcRequest).getResponseObject();
+
         } catch(Exception error){
-            logger.error(String.format("Failed to list the available resource metadata for datastore %s", getId()),error);
+            logger.error(String.format("Failed to list the available resource metadata for datastore %s", error));
             return null;
         }
     }
 
+    // TODO: Implement some kind of resource search logic.
     @Override
-    public void run() {
-        logger.info("Started Aggregator Client...");
+    public ArrayList<Resource> findResources(String filter) {
+        return listResources();
     }
 
     @Override
-    public void shutdown() {
-        logger.info("Shutting down aggregator client...");
+    public void run() {
+        logger.info("DatasStore client started...");
     }
 }

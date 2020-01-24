@@ -1,21 +1,12 @@
 package stitch.aggregator;
 
-import stitch.amqp.HealthReport;
+import stitch.rpc.transport.metrics.RpcEndpointReport;
 import stitch.datastore.DataStore;
 import stitch.resource.Resource;
 
 import java.util.ArrayList;
 
-public interface Aggregator {
-
-    ArrayList<HealthReport> listDataStores();
-
-    String createResource(Resource resource);
-    boolean updateResource(Resource resource);
-    Resource getResource(String resourceId);
-    boolean deleteResource(String resourceId);
-    ArrayList<Resource> findResources(String filter);
-    ArrayList<Resource> listResources();
+public interface Aggregator extends DataStore, Runnable {
+    ArrayList<RpcEndpointReport> listDataStores();
     void registerResource(String datastoreId, Resource resource);
-
 }

@@ -1,5 +1,6 @@
-package stitch.amqp.rpc;
+package stitch.rpc;
 
+import stitch.resource.Resource;
 import stitch.util.Serializer;
 
 import java.io.IOException;
@@ -7,18 +8,12 @@ import java.util.HashMap;
 
 public class RPCRequest extends RPCObject {
 
-    private HashMap<String, Object> arguments = new HashMap<>();
-
+    private HashMap<Class<?>, Object> arguments = new HashMap<>();
 
     public RPCRequest(String source, String destination, String method) {
         setSource(source);
         setDestination(destination);
         setMethod(method);
-    }
-
-    public RPCRequest(String source, String destination, String method, HashMap<String, Object> arguments){
-        this(source, destination, method);
-        this.putAllArg(arguments);
     }
 
     public RPCResponse createResponse(){
@@ -29,24 +24,50 @@ public class RPCRequest extends RPCObject {
     /* -- RPC ARGS -- */
     public Object getArg(String key){ return arguments.get(key); }
     public String getStringArg(String key){ return (String)getArg(key); }
-    public boolean getBoolArg(String key){ return (boolean)getArg(key); }
     public int getIntArg(String key){ return (int)getArg(key); }
     public long getLongArg(String key){ return (long)getArg(key); }
+    public boolean getBoolArg(String key){ return (boolean)getArg(key); }
+    public Resource getResourceArg(String key){ return (Resource) getArg(key); }
 
     public Object[] getArgValues(){
-        return null;
+        return arguments.values().toArray();
     }
 
-    public Class[] getArgClasses(){
-        return null;
+    public Class<?>[] getArgClasses(){
+        return arguments.keySet().toArray(new Class[arguments.size()]);
     }
 
-    public RPCRequest putArg(String key, Object value) {
+    public RPCRequest putArg(Class<?> key, Object value) {
         arguments.put(key, value);
         return this;
     }
 
-    public RPCRequest putAllArg(HashMap<String, Object> extraArguments) {
+    public RPCRequest putStringArg(Object value) {
+        arguments.put(String.class, value);
+        return this;
+    }
+
+    public RPCRequest putIntArg(Object value) {
+        arguments.put(int.class, value);
+        return this;
+    }
+
+    public RPCRequest putLongArg(Object value) {
+        arguments.put(long.class, value);
+        return this;
+    }
+
+    public RPCRequest putBoolArg(Object value) {
+        arguments.put(boolean.class, value);
+        return this;
+    }
+
+    public RPCRequest putResourceArg(Object value) {
+        arguments.put(Resource.class, value);
+        return this;
+    }
+
+    public RPCRequest putAllArg(HashMap<Class<?>, Object> extraArguments) {
         arguments.putAll(extraArguments);
         return this;
     }

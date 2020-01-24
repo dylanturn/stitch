@@ -1,11 +1,14 @@
-package stitch.amqp.rpc;
+package stitch.rpc;
 
 // TODO: Stop using ResponseBytes.java ans start using this instead.
 public enum RPCStatusCode {
     OK (200),
     EMPTY (204),
     MISSING (404),
-    ERROR (500);
+    SERVER_ERROR(500),
+    NOT_IMPLEMENTED(501),
+    NET_READ_ERROR(598),
+    NET_CONNECT_ERROR(599);
     private final int value;
     private RPCStatusCode(int i) { value = i; }
     public int toInteger() { return this.value; }

@@ -53,7 +53,7 @@ public class DataStoreMain {
 
         // Create an instance of each provider.
         for(Document document : providers){
-            DataStoreServer dataStore = new MongoDataStoreServer(document);
+            DataStoreServer dataStore = new MongoDataStoreServer(null, null);
             Thread providerThread = new Thread(dataStore);
             providerThreads.put(document.getString("uuid"), providerThread);
             providerHash.put(document.getString("uuid"), dataStore);
