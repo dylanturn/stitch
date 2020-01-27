@@ -1,21 +1,30 @@
-package stitch.rpc.transport.metrics;
+package stitch.rpc.metrics;
 
 import org.apache.commons.collections4.queue.CircularFifoQueue;
+import org.apache.log4j.Logger;
 import org.javatuples.Triplet;
 import stitch.rpc.RPCObject;
-import stitch.rpc.RPCRequest;
 import stitch.rpc.RPCResponse;
 import stitch.rpc.RPCStatusCode;
+import stitch.rpc.transport.amqp.AMQPClient;
 import stitch.util.Serializer;
+import stitch.util.configuration.item.ConfigItem;
 
 import java.io.*;
+import java.time.Instant;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class RpcEndpointReporter implements Serializable {
 
+    private static final Logger logger = Logger.getLogger(AMQPClient.class);
     private static final long serialVersionUID = 1986L;
+
+    private long startTime;
+    private String endpointId;
+    private boolean isHealthy = true;
 
     // RPC Calls
     private long totalCalls = 0;
@@ -28,12 +37,17 @@ public class RpcEndpointReporter implements Serializable {
     private Triplet<Long,Long,Long> successRate =  new Triplet<>(0L,0L,0L);
     private Triplet<Long,Long,Long> failureRate =  new Triplet<>(0L,0L,0L);
 
+    // List of alarms applicable to this endpoint.
+    private List<RpcEndpointAlarm> rpcEndpointAlarms;
+
     // Circular buffer of the last n number of RPC calls.
     private CircularFifoQueue<RPCObject> callRecordQueue;
 
-    public RpcEndpointReporter(int queueLength) {
-        callRecordQueue = new CircularFifoQueue<>(queueLength);
-        //startTimer();
+    public RpcEndpointReporter(ConfigItem endpointConfig) {
+        startTime = Instant.now().toEpochMilli();
+        this.endpointId = endpointConfig.getConfigId();
+        callRecordQueue = new CircularFifoQueue<>(100);
+        //callRecordQueue = new CircularFifoQueue<>(endpointConfig.getConfigInt("reporter_queue_size"));
     }
 
     public long getTotalCalls() { return totalCalls; }
@@ -64,6 +78,11 @@ public class RpcEndpointReporter implements Serializable {
         callRecordQueue.add(callRecord);
     }
 
+    public RpcEndpointReport generateReport() {
+        long endpointUptime = Instant.now().toEpochMilli() - startTime;
+        return new RpcEndpointReport(endpointId, isHealthy, endpointUptime);
+    }
+
     public static RpcEndpointReporter fromByteArray(byte[] rpcStatsbytes) throws IOException, ClassNotFoundException {
         return (RpcEndpointReporter)Serializer.bytesToObject(rpcStatsbytes);
     }
@@ -72,21 +91,17 @@ public class RpcEndpointReporter implements Serializable {
         return Serializer.objectToBytes(rpcStats);
     }
 
-   /* private void startTimer(){
-        healthReportTimer = new Timer();
+    /*
+
+    Timer endpointReportTimer;
+    int timerInitialDelay = 5000;
+    int timerReportPeriod = 5000;
+
+    private void startTimer(){
+        endpointReportTimer = new Timer();
         TimerTask task = new CheckHealth();
-        healthReportTimer.schedule(task, initialDelay, timerPeriod);
+        endpointReportTimer.schedule(task, timerInitialDelay, timerReportPeriod);
     }
-
-    public RpcEndpointReport getLastHealthReport(){
-        return lastHealthReport;
-    }
-
-    public Iterator<RpcEndpointReport> getAllHealthReports(){
-        return healthReportQueue.iterator();
-    }
-
-
 
     private class CheckHealth extends TimerTask
     {
@@ -106,9 +121,5 @@ public class RpcEndpointReporter implements Serializable {
         }
     }
 
-    private RpcEndpointReport reportHealth() throws Exception {
-        return (RpcEndpointReport)invokeRPC(new RPCRequest("", getRouteKey(), "reportHealth"))
-                .getResponseObject();
-    }*/
-
+    */
 }

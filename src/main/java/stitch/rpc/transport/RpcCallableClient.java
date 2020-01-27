@@ -2,11 +2,12 @@ package stitch.rpc.transport;
 
 import stitch.rpc.RPCRequest;
 import stitch.rpc.RPCResponse;
-import stitch.util.properties.StitchProperty;
 
 import java.io.IOException;
 
-public interface RpcCallableClient extends Runnable {
-    RpcCallableClient setProperties(StitchProperty transportProperties);
+public interface RpcCallableClient {
+    String getRpcAddress();
     RPCResponse invokeRPC(RPCRequest rpcRequest) throws IOException, InterruptedException;
+    boolean isReady();
+    boolean isConnected();
 }

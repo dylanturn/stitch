@@ -2,20 +2,14 @@ package stitch;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
-import com.mongodb.MongoClient;
-import com.mongodb.MongoClientURI;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.model.Filters;
 import org.apache.log4j.Logger;
-import org.bson.Document;
 import org.slf4j.LoggerFactory;
 import stitch.aggregator.AggregatorServer;
-import stitch.aggregator.RedisAggregatorServer;
+import stitch.aggregator.redisearch.RedisAggregatorServer;
 import stitch.aggregator.Aggregator;
-import stitch.util.properties.MongoPropertyStore;
-import stitch.util.properties.PropertyStore;
-import stitch.util.properties.StitchProperty;
+import stitch.util.configuration.item.ConfigItem;
+import stitch.util.configuration.item.ConfigItemType;
+import stitch.util.configuration.store.ConfigStore;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,45 +23,17 @@ public class AggregatorMain {
     public static void main(String[] args) throws Exception {
 
         ((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger("org.mongodb.driver").setLevel(Level.ERROR);
+        ConfigStore configStore = ConfigStore.loadConfigStore();
 
-        // Get Stitch_DB connection settings.
-        PropertyStore propertyStore = new MongoPropertyStore();
-        String secretKey = "";
-        String secretSalt = "";
-        String protocol = propertyStore.getString("stitch_discovery", "protocol");
-        String host = propertyStore.getString("stitch_discovery", "host");
-        String username = propertyStore.getString("stitch_discovery", "username");
-        String password = propertyStore.getSecret("stitch_discovery", "password", secretKey, secretSalt);
-        String options = propertyStore.getString("stitch_discovery", "options");
-        String database = propertyStore.getString("stitch_discovery", "database");
-        String collection = propertyStore.getString("stitch_discovery", "collection");
-        propertyStore.close();
+        // For right now we're just going to choose the first Aggregator
+        ConfigItem aggregatorConfig = configStore.listConfigByItemType(ConfigItemType.AGGREGATOR).get(0);
 
-        // Connect to Stitch_DB to get all the providers.
-        String dbURI = String.format("%s://%s:%s@%s/%s?%s", protocol, username, password, host, database, options);
-        logger.info("Connecting to Stitch provider DB: " + dbURI);
+        AggregatorServer aggregator = new RedisAggregatorServer(aggregatorConfig);
+        Thread aggregatorThread = new Thread(aggregator);
+        aggregatorThreads.put(aggregatorConfig.getConfigId(), aggregatorThread);
+        aggregatorHash.put(aggregatorConfig.getConfigId(), aggregator);
+        aggregatorThread.start();
 
-        MongoClientURI mongoURI = new MongoClientURI(dbURI);
-        MongoClient mongoClient = new MongoClient(mongoURI);
-        MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
-        MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(collection);
-
-        // Get a list of the data providers and aggrigators.
-        Iterable<Document> providers = mongoCollection.find(Filters.eq("type", "data_provider"));
-        Iterable<Document> aggregators = mongoCollection.find(Filters.eq("type", "data_aggregator"));
-
-        // Create and start an instance of each aggregator.
-        for(Document document : aggregators){
-            AggregatorServer aggregator = new RedisAggregatorServer(null, null, null);
-            Thread aggregatorThread = new Thread(aggregator);
-            aggregatorThreads.put(document.getString("uuid"), aggregatorThread);
-            aggregatorHash.put(document.getString("uuid"), aggregator);
-            aggregatorThread.start();
-            logger.info("Aggregator instance started!!!");
-        }
-
-        // Now that all the providers are started we can close this connection.
-        mongoClient.close();
         logger.info("Dataprovider started. Waiting for requests...");
         while (true){
             Thread.sleep(5000);

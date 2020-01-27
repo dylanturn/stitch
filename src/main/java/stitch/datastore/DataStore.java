@@ -1,7 +1,9 @@
 package stitch.datastore;
 
 import stitch.resource.Resource;
+import stitch.rpc.metrics.RpcEndpointReport;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
 public interface DataStore {
@@ -12,4 +14,5 @@ public interface DataStore {
     Iterable<Resource> listResources();
     Iterable<Resource> listResources(boolean includeData);
     ArrayList<Resource> findResources(String filter);
+    RpcEndpointReport getEndpointReport() throws IOException, InterruptedException, ClassNotFoundException;
 }

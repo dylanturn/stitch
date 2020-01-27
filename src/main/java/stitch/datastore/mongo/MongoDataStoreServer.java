@@ -1,4 +1,4 @@
-package stitch.datastore;
+package stitch.datastore.mongo;
 
 import com.mongodb.*;
 import com.mongodb.client.FindIterable;
@@ -7,9 +7,11 @@ import com.mongodb.client.MongoDatabase;
 import org.apache.log4j.Logger;
 import org.bson.Document;
 import org.bson.types.Binary;
+import stitch.datastore.DataStoreServer;
 import stitch.resource.Resource;
-import stitch.util.properties.StitchProperty;
+import stitch.util.configuration.item.ConfigItem;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
 import static com.mongodb.client.model.Projections.fields;
@@ -20,21 +22,12 @@ public class MongoDataStoreServer extends DataStoreServer {
     static final Logger logger = Logger.getLogger(MongoDataStoreServer.class);
 
     private String dsURI;
-    private String dsProtocol = rpcServerProperty.getPropertyString("protocol");
-    private String dsHost = rpcServerProperty.getPropertyString("host");
-    private int dsPort = rpcServerProperty.getPropertyInt("port");
-    private String dsUsername = rpcServerProperty.getPropertyString("username");
-    private String dsPassword = rpcServerProperty.getPropertyString("password");
-    private String dsOptions = rpcServerProperty.getPropertyString("options");
-    private String database = rpcServerProperty.getPropertyString("database");
-    private String collection = rpcServerProperty.getPropertyString("collection");
-
     private MongoClient mongoClient;
     private MongoDatabase mongoDatabase;
     private MongoCollection<Document> mongoCollection;
 
-    public MongoDataStoreServer(StitchProperty dataStoreProperty, StitchProperty transportProperty) throws Exception {
-        super(dataStoreProperty, transportProperty);
+    public MongoDataStoreServer(ConfigItem dataStoreConfig) throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
+        super(dataStoreConfig);
     }
 
     private static Document fromResource(Resource resource) {
@@ -76,15 +69,23 @@ public class MongoDataStoreServer extends DataStoreServer {
 
     @Override
     public void connect() {
+        String dsProtocol = endpointConfig.getConfigString("protocol");
+        String dsHost = endpointConfig.getConfigString("host");
+        int dsPort = endpointConfig.getConfigInt("port");
+        String dsUsername = endpointConfig.getConfigString("username");
+        String dsPassword = endpointConfig.getConfigString("password");
+        String dsOptions = endpointConfig.getConfigString("options");
+        String database = endpointConfig.getConfigString("database");
+        String collection = endpointConfig.getConfigString("collection");
 
         logger.info("Start a new DataStore instance...");
-        logger.info("UUID:  " + rpcServerProperty.getObjectId());
-        logger.info("Class: " + rpcServerProperty.getObjectClass().toString());
-        logger.info("Type: " + rpcServerProperty.getObjectType().toString());
-        logger.info("Host: " + dsHost);
-        logger.info("Options: " + dsOptions);
-        logger.info("Database: " + database);
-        logger.info("Collection: " + collection);
+        logger.info("UUID:  " + endpointConfig.getConfigId());
+        logger.info("Class: " + endpointConfig.getConfigString("class"));
+        logger.info("Type: " + endpointConfig.getConfigString("type"));
+        logger.info("Host: " + endpointConfig.getConfigString("host"));
+        logger.info("Options: " + endpointConfig.getConfigString("options"));
+        logger.info("Database: " + endpointConfig.getConfigString("database"));
+        logger.info("Collection: " + endpointConfig.getConfigString("collection"));
 
         try {
             dsURI = String.format("%s://%s:%s@%s/%s?%s", dsProtocol, dsUsername, dsPassword, dsHost, database, dsOptions);
@@ -102,8 +103,8 @@ public class MongoDataStoreServer extends DataStoreServer {
     public String createResource(Resource resource) {
         try {
             logger.info(String.format("Creating resource: %s", resource.getUUID()));
-            MongoDatabase mdb = mongoClient.getDatabase(database);
-            MongoCollection<Document> mcol = mdb.getCollection(collection);
+            MongoDatabase mdb = mongoClient.getDatabase(endpointConfig.getConfigString("database"));
+            MongoCollection<Document> mcol = mdb.getCollection(endpointConfig.getConfigString("collection"));
             mcol.insertOne(fromResource(resource));
             return resource.getUUID();
         } catch(Exception error){

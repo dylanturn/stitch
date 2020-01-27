@@ -21,3 +21,13 @@ java -cp "target/*:target/libs/*" stitch.AggregatorMain
 # List available resources 
 ./stitchcli list resources
 ```
+
+### Object Configuration
+```Java
+Map<String, String> filters = new HashMap<>();
+filters.put("type", ConfigItemType.DATASTORE.toString());
+filters.put("aggregator", endpointConfig.getConfigId());
+for(ConfigItem dataStoreConfig : configStore.getConfigItemsByAttributes(filters)){
+    dataStoreClients.put(dataStoreConfig.getConfigId(), new DataStoreClient(dataStoreConfig.getConfigId()));
+}
+```

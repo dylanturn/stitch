@@ -7,7 +7,7 @@ import java.io.IOException;
 public class RPCResponse extends RPCObject {
 
     private RPCStatusCode statusCode;
-    private String statusMessage;
+    private String statusMessage = "";
     private byte[] responseBytes;
 
     public RPCResponse(String source, String destination, String method) {

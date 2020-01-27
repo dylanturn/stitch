@@ -1,50 +1,62 @@
 package stitch.aggregator;
 
-import org.apache.log4j.Logger;
 import stitch.datastore.DataStoreClient;
-import stitch.rpc.transport.*;
-import stitch.rpc.transport.metrics.RpcEndpointReport;
-import stitch.util.properties.StitchProperty;
 import stitch.resource.Resource;
+import stitch.rpc.metrics.RpcEndpointReport;
+import stitch.rpc.transport.RpcCallableServer;
+import stitch.rpc.transport.RpcRequestHandler;
+import stitch.rpc.transport.RpcTransportFactory;
+import stitch.util.configuration.item.ConfigItem;
+import stitch.util.configuration.item.ConfigItemType;
+import stitch.util.configuration.store.ConfigStore;
 
+import java.io.IOException;
+import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class AggregatorServer extends RpcAbstractServer implements Aggregator {
+public abstract class AggregatorServer implements Aggregator, Runnable {
 
-    static final Logger logger = Logger.getLogger(AggregatorServer.class);
+    private ConfigStore configStore;
+    protected ConfigItem endpointConfig;
+    protected RpcCallableServer rpcServer;
 
-    protected Iterable<StitchProperty> dataStoreProperties;
+    protected HashMap<String, DataStoreClient> dataStoreClients = new HashMap<>();
 
-    protected RpcCallableServer rpcCallableServer;
-    protected HashMap<String, DataStoreClient> providerClients = new HashMap<>();
-
-    public AggregatorServer(StitchProperty rpcProperty, StitchProperty transportProperty, Iterable<StitchProperty> dataStoreProperties) throws InstantiationException, IllegalAccessException {
-        super(rpcProperty, transportProperty);
-        this.dataStoreProperties = dataStoreProperties;
-        rpcCallableServer = RpcTransportFactory.newRpcServer(rpcProperty, transportProperty);
-        for(StitchProperty datastoreProperty : dataStoreProperties){
-            this.addDataStoreClient(datastoreProperty);
-        }
+    public static AggregatorServer createAggregator(String endpointId) throws ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
+        ConfigItem endpointConfig = ConfigStore.loadConfigStore().getConfigItemById(endpointId);
+        Class<? extends AggregatorServer> aggregatorClientClass = endpointConfig.getConfigClass("class");
+        Constructor<?> aggregatorClientClassConstructor = aggregatorClientClass.getConstructor(ConfigItem.class);
+        return (AggregatorServer)aggregatorClientClassConstructor.newInstance(endpointConfig);
     }
 
-    public void addDataStoreClient(StitchProperty datastoreProperty) throws InstantiationException, IllegalAccessException {
-        providerClients.put(datastoreProperty.getObjectId(), new DataStoreClient(datastoreProperty, transportProperty));
+    public AggregatorServer(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+        configStore = ConfigStore.loadConfigStore();
+        this.endpointConfig = endpointConfig;
     }
 
-    @Override
-    public ArrayList<RpcEndpointReport> listDataStores() {
-        ArrayList<RpcEndpointReport> dataStoreHealthReports = new ArrayList<>();
-        for(DataStoreClient dataStoreClient : providerClients.values()){
+    private void connectRpcTransport() throws IllegalAccessException, ClassNotFoundException, InstantiationException, InvocationTargetException, NoSuchMethodException {
+        rpcServer = RpcTransportFactory.newRpcServer(endpointConfig.getConfigId(), new RpcRequestHandler(this));
+        new Thread(rpcServer).start();
+    }
+
+
+    private void connectDataStoreClients() throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
+        // Create a Map that holds all the filters we'll use to get the aggregators datastores.
+        Map<String, String> filters = new HashMap<>();
+        filters.put("type", ConfigItemType.DATASTORE.toString());
+        filters.put("aggregator", endpointConfig.getConfigId());
+
+        for(ConfigItem dataStoreConfig : configStore.getConfigItemsByAttributes(filters)){
+            dataStoreClients.put(dataStoreConfig.getConfigId(), new DataStoreClient(dataStoreConfig.getConfigId()));
         }
-        return dataStoreHealthReports;
     }
 
     private void registerResources(){
-        logger.info("Registering datastore resources!");
-        for(Map.Entry<String, DataStoreClient> dataStoreClient : providerClients.entrySet()){
-            logger.info("Registering datastore resources.");
+        for(Map.Entry<String, DataStoreClient> dataStoreClient : dataStoreClients.entrySet()){
             ArrayList<Resource> resourceArray = dataStoreClient.getValue().listResources();
             for(Resource resource : resourceArray) {
                 this.registerResource(dataStoreClient.getKey(), resource);
@@ -53,29 +65,51 @@ public abstract class AggregatorServer extends RpcAbstractServer implements Aggr
     }
 
     @Override
-    public void run() {
-
-        // Make sure the Aggregator has connected to the cache
-        this.connect();
-
-        // Create a DataStore client instance for each datastore
-        try {
-            for (StitchProperty dataStoreProperty : dataStoreProperties) {
-                providerClients.put(dataStoreProperty.getObjectId(), new DataStoreClient(dataStoreProperty, transportProperty));
+    public ArrayList<RpcEndpointReport> listDataStores() {
+        ArrayList<RpcEndpointReport> dataStoreReports = new ArrayList<>();
+        for(String dataStoreId : dataStoreClients.keySet()){
+            try {
+                dataStoreReports.add(dataStoreClients.get(dataStoreId).getEndpointReport());
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
             }
-        } catch(IllegalAccessException error){
-            logger.error("Failed to create datastore client!", error);
-        } catch(InstantiationException error){
-            logger.error("Failed to create datastore client!", error);
         }
-
-        // Request a list of resources from all the DataStores and put them in the cache.
-        this.registerResources();
+        return dataStoreReports;
     }
 
-    public abstract void connect();
+    @Override
+    public RpcEndpointReport getEndpointReport(){
+        return rpcServer.generateEndpointReport();
+    }
+
+    @Override
+    public void run() {
+        try {
+
+            // Start up the RPC transport
+            connectRpcTransport();
+
+            // Create and connect the datastore clients
+            connectDataStoreClients();
+
+            // Request a list of resources from all the DataStores and put them in the cache.
+            this.registerResources();
+
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
+    }
 
 }
-
-
-

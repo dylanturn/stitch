@@ -1,20 +1,37 @@
 package stitch.aggregator;
 
 import org.apache.log4j.Logger;
-import stitch.rpc.transport.RpcAbstractClient;
-import stitch.util.properties.StitchProperty;
-import stitch.rpc.transport.metrics.RpcEndpointReport;
+import stitch.rpc.RPCResponse;
+import stitch.rpc.RPCStatusCode;
+import stitch.rpc.metrics.RpcEndpointReport;
 import stitch.rpc.RPCRequest;
 import stitch.resource.Resource;
+import stitch.rpc.transport.RpcCallableClient;
+import stitch.rpc.transport.RpcTransportFactory;
+import stitch.util.configuration.item.ConfigItem;
+import stitch.util.configuration.store.ConfigStore;
 
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 
-public class AggregatorClient extends RpcAbstractClient implements Aggregator {
+public class AggregatorClient implements Aggregator {
 
     static final Logger logger = Logger.getLogger(AggregatorClient.class);
 
-    public AggregatorClient(StitchProperty aggregatorProperty, StitchProperty transportProperty) throws InstantiationException, IllegalAccessException {
-        super(aggregatorProperty, transportProperty);
+    protected ConfigItem endpointConfig;
+    protected RpcCallableClient rpcClient;
+
+    public AggregatorClient(String endpointId) throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
+        endpointConfig = ConfigStore.loadConfigStore().getConfigItemById(endpointId);
+        rpcClient = RpcTransportFactory.newRpcClient(endpointId);
+    }
+
+    public boolean isRpcReady(){
+        return rpcClient.isReady();
+    }
+    public boolean isRpcConnected(){
+        return rpcClient.isConnected();
     }
 
     @Override
@@ -24,7 +41,7 @@ public class AggregatorClient extends RpcAbstractClient implements Aggregator {
 
     @Override
     public boolean updateResource(Resource resource) {
-        RPCRequest rpcRequest = new RPCRequest("", rpcClientProperty.getObjectId(), "updateResource")
+        RPCRequest rpcRequest = new RPCRequest("", rpcClient.getRpcAddress(), "updateResource")
                 .putResourceArg(resource);
         try {
             return (boolean) rpcClient.invokeRPC(rpcRequest).getResponseObject();
@@ -36,7 +53,7 @@ public class AggregatorClient extends RpcAbstractClient implements Aggregator {
 
     @Override
     public Resource getResource(String resourceId) {
-        RPCRequest rpcRequest = new RPCRequest("", rpcClientProperty.getObjectId(), "getResource")
+        RPCRequest rpcRequest = new RPCRequest("", rpcClient.getRpcAddress(), "getResource")
                .putStringArg(resourceId);
         try {
             return (Resource) rpcClient.invokeRPC(rpcRequest).getResponseObject();
@@ -46,7 +63,7 @@ public class AggregatorClient extends RpcAbstractClient implements Aggregator {
 
     @Override
     public boolean deleteResource(String resourceId) {
-        RPCRequest rpcRequest = new RPCRequest("", rpcClientProperty.getObjectId(), "deleteResource")
+        RPCRequest rpcRequest = new RPCRequest("", rpcClient.getRpcAddress(), "deleteResource")
                 .putStringArg(resourceId);
         try {
             return (boolean) rpcClient.invokeRPC(rpcRequest).getResponseObject();
@@ -58,7 +75,7 @@ public class AggregatorClient extends RpcAbstractClient implements Aggregator {
 
     @Override
     public ArrayList<Resource> findResources(String filter) {
-        RPCRequest rpcRequest = new RPCRequest("", rpcClientProperty.getObjectId(), "findResources")
+        RPCRequest rpcRequest = new RPCRequest("", rpcClient.getRpcAddress(), "findResources")
                 .putStringArg(filter);
         try {
             return (ArrayList<Resource>) rpcClient.invokeRPC(rpcRequest).getResponseObject();
@@ -69,8 +86,14 @@ public class AggregatorClient extends RpcAbstractClient implements Aggregator {
     }
 
     @Override
+    public RpcEndpointReport getEndpointReport() throws IOException, InterruptedException, ClassNotFoundException {
+        RPCRequest rpcRequest = new RPCRequest("", rpcClient.getRpcAddress(), "generateEndpointReport");
+        return (RpcEndpointReport)rpcClient.invokeRPC(rpcRequest).getResponseObject();
+    }
+
+    @Override
     public ArrayList<Resource> listResources() {
-        RPCRequest rpcRequest = new RPCRequest("", rpcClientProperty.getObjectId(), "listResources");
+        RPCRequest rpcRequest = new RPCRequest("", rpcClient.getRpcAddress(), "listResources");
         try {
             return (ArrayList<Resource>) rpcClient.invokeRPC(rpcRequest).getResponseObject();
         } catch(Exception error){
@@ -88,8 +111,16 @@ public class AggregatorClient extends RpcAbstractClient implements Aggregator {
     @Override
     public ArrayList<RpcEndpointReport> listDataStores() {
         try {
-            RPCRequest rpcRequest = new RPCRequest("", rpcClientProperty.getObjectId(), "listDataStores");
-            return (ArrayList<RpcEndpointReport>) rpcClient.invokeRPC(rpcRequest).getResponseObject();
+            RPCRequest rpcRequest = new RPCRequest("", rpcClient.getRpcAddress(), "listDataStores");
+            RPCResponse rpcResponse = rpcClient.invokeRPC(rpcRequest);
+
+            if(rpcResponse.getStatusCode() == RPCStatusCode.OK){
+                return (ArrayList<RpcEndpointReport>)rpcResponse.getResponseObject();
+            } else {
+                logger.warn("Response Code:    " + rpcResponse.getStatusCode());
+                logger.warn("Response Message: " + rpcResponse.getStatusMessage());
+                return null;
+            }
         } catch(Exception error){
             logger.error("Failed to list resources!", error);
             return null;
@@ -98,21 +129,16 @@ public class AggregatorClient extends RpcAbstractClient implements Aggregator {
 
     @Override
     public void registerResource(String datastoreId, Resource resource) {
-        RPCRequest rpcRequest = new RPCRequest("", rpcClientProperty.getObjectId(), "registerResource")
+        RPCRequest rpcRequest = new RPCRequest("", rpcClient.getRpcAddress(), "registerResource")
                 .putStringArg(datastoreId)
                 .putResourceArg(resource);
         try {
             logger.info(String.format("Registering resource: %s", resource.getUUID()));
             logger.info(String.format("Datastore Id:         %s", datastoreId));
-            logger.info(String.format("Route Key:            %s", rpcClientProperty.getObjectId()));
+            logger.info(String.format("Route Key:            %s", rpcClient.getRpcAddress()));
             rpcClient.invokeRPC(rpcRequest);
         } catch(Exception error){
             logger.error("Failed to register resource!", error);
         }
-    }
-
-    @Override
-    public void run() {
-        logger.info("Started Aggregator Client...");
     }
 }

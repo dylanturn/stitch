@@ -26,6 +26,7 @@ public class AMQPHandler implements DeliverCallback {
 
     @Override
     public void handle(String consumerTag, Delivery delivery) throws IOException {
+        logger.trace("Handling AMQP delivery!");
         AMQP.BasicProperties replyProps = new AMQP.BasicProperties
                 .Builder()
                 .correlationId(delivery.getProperties().getCorrelationId())
@@ -37,9 +38,13 @@ public class AMQPHandler implements DeliverCallback {
         logger.trace("RPC Response received!");
         RPCResponse rpcResponse = rpcRequestHandler.handleRequest(rpcRequest);
         logger.trace("RPC Response bytes received!");
+        logger.trace("RPC Response Code: " + rpcResponse.getStatusCode());
+        logger.trace("RPC Response Message: " + rpcResponse.getStatusMessage());
         byte[] rpcResponseBytes = RPCResponse.toByteArray(rpcResponse);
-
+        logger.trace("RPC Response Length: " + rpcResponseBytes.length);
+        logger.trace("Responding to: " + delivery.getProperties().getReplyTo());
         // Publish the reply to the caller and ack the message.
+        logger.trace("RPC Channel Open: " + channel.isOpen());
         channel.basicPublish("", delivery.getProperties().getReplyTo(), replyProps, rpcResponseBytes);
         channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
         synchronized (monitor) {

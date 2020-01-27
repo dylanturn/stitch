@@ -1,4 +1,4 @@
-package stitch.rpc.transport.metrics;
+package stitch.rpc.metrics;
 
 import java.io.*;
 import java.time.Instant;
@@ -18,28 +18,13 @@ public class RpcEndpointReport implements Serializable {
     private ArrayList<RpcEndpointAlarm> alarms = new ArrayList<>();
     private HashMap<String, Object> extraData = new HashMap<>();
 
-    public RpcEndpointReport(boolean nodeHealthy, String nodeId, long nodeUptime, List<RpcEndpointAlarm> rpcEndpointAlarms, RpcEndpointReporter rpcStats){
+    public RpcEndpointReport(String nodeId, boolean nodeHealthy, long nodeUptime){
         this.reportTime = Instant.now().toEpochMilli();
         this.isNodeHealthy = nodeHealthy;
         this.nodeId = nodeId;
         this.nodeUptime = nodeUptime;
-        if(rpcEndpointAlarms != null)
-            this.alarms.addAll(rpcEndpointAlarms);
-        if(rpcStats != null)
-            this.rpcStats = rpcStats;
     }
 
-    public RpcEndpointReport(boolean nodeHealthy, String nodeId, long nodeUptime){
-        this(nodeHealthy, nodeId, nodeUptime, null, null);
-    }
-
-    public RpcEndpointReport(boolean nodeHealthy, String nodeId, long nodeUptime, List<RpcEndpointAlarm> rpcEndpointAlarms){
-        this(nodeHealthy, nodeId, nodeUptime, rpcEndpointAlarms, null);
-    }
-
-    public RpcEndpointReport(boolean nodeHealthy, String nodeId, long nodeUptime, RpcEndpointReporter rpcStats){
-        this(nodeHealthy, nodeId, nodeUptime, null, rpcStats);
-    }
 
     public long getReportTime(){
         return reportTime;

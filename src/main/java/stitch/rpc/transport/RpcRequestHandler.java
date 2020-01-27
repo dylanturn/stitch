@@ -21,8 +21,9 @@ public class RpcRequestHandler {
     }
 
     public RpcRequestHandler(DataStore dataStore) {
+
         this.serverClass = dataStore.getClass();
-        this.serverObject = dataStore.getClass();
+        this.serverObject = dataStore;
     }
 
     public RPCResponse handleRequest(RPCRequest rpcRequest) {
@@ -34,9 +35,16 @@ public class RpcRequestHandler {
         try {
 
             Method method = serverClass.getMethod(methodName, methodArgClasses);
-            return rpcRequest.createResponse()
-                    .setStatusCode(RPCStatusCode.OK)
-                    .setResponseObject(method.invoke(serverObject, methodArgValues));
+            Object responseObject = method.invoke(serverObject, methodArgValues);
+            if(responseObject != null){
+                return rpcRequest.createResponse()
+                        .setStatusCode(RPCStatusCode.OK)
+                        .setResponseObject(responseObject);
+            } else {
+                return rpcRequest.createResponse()
+                        .setStatusCode(RPCStatusCode.MISSING)
+                        .setStatusMessage("NULL object returned!");
+            }
 
         } catch (NoSuchMethodException error) {
             return rpcRequest.createResponse()
