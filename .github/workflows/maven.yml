@@ -2,7 +2,7 @@ name: Java CI
 
 on:
   push:
-    branches: 
+    branches:
       - master
 
 jobs:
@@ -18,10 +18,10 @@ jobs:
         java-version: 1.8
     - name: Build with Maven
       run: mvn -B package --file pom.xml
-      
+
     - name: Package up the libraries into an archive.
       run: zip -r stitch_artifact.zip ./target/stitch-*.jar ./target/libs
-      
+
     - uses: actions/upload-artifact@v1
       with:
         name: stitch_artifact.zip
