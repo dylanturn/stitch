@@ -22,12 +22,105 @@ java -cp "target/*:target/libs/*" stitch.AggregatorMain
 ./stitchcli list resources
 ```
 
-### Object Configuration
+### Object Configuration Discovery
+Discovering datastores that are managed by an aggregator
 ```Java
-Map<String, String> filters = new HashMap<>();
-filters.put("type", ConfigItemType.DATASTORE.toString());
-filters.put("aggregator", endpointConfig.getConfigId());
-for(ConfigItem dataStoreConfig : configStore.getConfigItemsByAttributes(filters)){
-    dataStoreClients.put(dataStoreConfig.getConfigId(), new DataStoreClient(dataStoreConfig.getConfigId()));
+public class ExampleConfigDiscovery {
+    public static void main(String[] args) throws Exception {
+        Map<String, String> filters = new HashMap<>();
+        filters.put("type", ConfigItemType.DATASTORE.toString());
+        filters.put("aggregator", endpointConfig.getConfigId());
+        for(ConfigItem dataStoreConfig : configStore.getConfigItemsByAttributes(filters)){
+            dataStoreClients.put(dataStoreConfig.getConfigId(), new DataStoreClient(dataStoreConfig.getConfigId()));
+        }
+    }
+}
+```
+
+## Implementing New Services
+
+### Create a class that extends the services abstract class.
+
+#### Aggregator
+```java
+import stitch.aggregator.AggregatorServer;
+import stitch.util.configuration.item.ConfigItem;
+
+public class ExampleAggregatorServer extends AggregatorServer {
+    public ExampleAggregatorServer(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+        super(endpointConfig);
+    }
+}
+```
+###### JSON Config
+ ```json
+{
+    "uuid": "95a6495db3ef46c5aa98b428127c2cd4",
+    "name": "amqp",
+    "type": "aggregator",
+    "class": "com.foo.bar.ExampleAggregatorServer"
+}
+```
+#### DataStore
+```java
+package com.foo.bar;
+import stitch.datastore.DataStoreServer;
+import stitch.util.configuration.item.ConfigItem;
+
+import java.lang.reflect.InvocationTargetException;
+
+public class ExampleDataStore extends DataStoreServer {
+    public ExampleDataStore(ConfigItem configItem) throws IllegalAccessException, InstantiationException, ClassNotFoundException, InvocationTargetException, NoSuchMethodException {
+        super(configItem);
+    }
+}
+```
+###### JSON Config
+ ```json
+{
+    "uuid": "95a6495db3ef46c5aa98b428127c2cd4",
+    "name": "amqp",
+    "type": "datastore",
+    "class": "com.foo.bar.ExampleDataStore"
+}
+```
+#### Transport
+###### Transport Client
+```java
+package stitch.rpc.transport.amqp;
+
+import stitch.rpc.transport.RpcCallableAbstract;
+import stitch.rpc.transport.RpcCallableClient;
+import stitch.util.configuration.item.ConfigItem;
+
+public class HttpClient extends RpcCallableAbstract implements RpcCallableClient {
+    public HttpClient(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+        super(endpointConfig);
+    }
+}
+```
+###### Transport Server
+```java
+package stitch.rpc.transport.amqp;
+
+import stitch.rpc.transport.RpcCallableAbstract;
+import stitch.rpc.transport.RpcCallableServer;
+import stitch.util.configuration.item.ConfigItem;
+
+public class HttpServer extends RpcCallableAbstract implements RpcCallableServer {
+    public HttpServer(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+        super(endpointConfig);
+    }
+}
+```
+###### JSON Config
+ ```json
+{
+    "uuid": "95a6495db3ef46c5aa98b428127c2cd4",
+    "name": "amqp",
+    "type": "transport",
+    "class": "stitch.rpc.transport.amqp",
+    "client_class": "stitch.rpc.transport.amqp.AMQPClient",
+    "server_class": "stitch.rpc.transport.amqp.AMQPServer"
 }
 ```

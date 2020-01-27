@@ -90,36 +90,4 @@ public class RpcEndpointReporter implements Serializable {
     public static byte[] toByteArray(RpcEndpointReporter rpcStats) throws IOException {
         return Serializer.objectToBytes(rpcStats);
     }
-
-    /*
-
-    Timer endpointReportTimer;
-    int timerInitialDelay = 5000;
-    int timerReportPeriod = 5000;
-
-    private void startTimer(){
-        endpointReportTimer = new Timer();
-        TimerTask task = new CheckHealth();
-        endpointReportTimer.schedule(task, timerInitialDelay, timerReportPeriod);
-    }
-
-    private class CheckHealth extends TimerTask
-    {
-
-        public void run()
-        {
-            try {
-                RpcEndpointReport healthReport = reportHealth();
-                logger.trace("Requesting health report.");
-                lastHealthReport = healthReport;
-                healthReportQueue.add(healthReport);
-                logger.trace("Received health report.");
-                logger.trace(String.format("Node Health: %s", Boolean.toString(healthReport.getIsNodeHealthy())));
-            } catch (Exception error) {
-                logger.error("Failed to get heartbeat", error);
-            }
-        }
-    }
-
-    */
 }

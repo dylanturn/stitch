@@ -25,7 +25,6 @@ public class RpcEndpointReport implements Serializable {
         this.nodeUptime = nodeUptime;
     }
 
-
     public long getReportTime(){
         return reportTime;
     }
