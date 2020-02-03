@@ -1,6 +1,9 @@
 package stitch.util.configuration.item;
 
-public enum ConfigItemType {
+import java.io.Serializable;
+
+
+public enum ConfigItemType implements Serializable {
     DATASTORE ("datastore"),
     AGGREGATOR ("aggregator"),
     TRANSPORT ("transport"),

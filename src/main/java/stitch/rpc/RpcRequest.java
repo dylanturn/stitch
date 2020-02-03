@@ -1,24 +1,30 @@
 package stitch.rpc;
 
 import stitch.resource.Resource;
+import stitch.transport.TransmitMode;
 import stitch.util.Serializer;
 
 import java.io.IOException;
 import java.util.HashMap;
 
-public class RPCRequest extends RPCObject {
+public class RpcRequest extends Rpc {
 
     private HashMap<Class<?>, Object> arguments = new HashMap<>();
 
-    public RPCRequest(String source, String destination, String method) {
+    public RpcRequest(String source, String destination, String method) {
         setSource(source);
         setDestination(destination);
         setMethod(method);
     }
 
-    public RPCResponse createResponse(){
+    public RpcRequest(String source, String destination, String method, TransmitMode transmitMode) {
+        this(source, destination, method);
+        setTransmitMode(transmitMode);
+    }
+
+    public RpcResponse createResponse(){
         // We flip the source and destination since we're sending it back.
-        return new RPCResponse(this.getDestination(), this.getSource(), this.getMethod());
+        return new RpcResponse(this.getDestination(), this.getSource(), this.getMethod());
     }
 
     /* -- RPC ARGS -- */
@@ -37,51 +43,51 @@ public class RPCRequest extends RPCObject {
         return arguments.keySet().toArray(new Class[arguments.size()]);
     }
 
-    public RPCRequest putArg(Class<?> key, Object value) {
+    public RpcRequest putArg(Class<?> key, Object value) {
         arguments.put(key, value);
         return this;
     }
 
-    public RPCRequest putStringArg(Object value) {
+    public RpcRequest putStringArg(Object value) {
         arguments.put(String.class, value);
         return this;
     }
 
-    public RPCRequest putIntArg(Object value) {
+    public RpcRequest putIntArg(Object value) {
         arguments.put(int.class, value);
         return this;
     }
 
-    public RPCRequest putLongArg(Object value) {
+    public RpcRequest putLongArg(Object value) {
         arguments.put(long.class, value);
         return this;
     }
 
-    public RPCRequest putBoolArg(Object value) {
+    public RpcRequest putBoolArg(Object value) {
         arguments.put(boolean.class, value);
         return this;
     }
 
-    public RPCRequest putResourceArg(Object value) {
+    public RpcRequest putResourceArg(Object value) {
         arguments.put(Resource.class, value);
         return this;
     }
 
-    public RPCRequest putAllArg(HashMap<Class<?>, Object> extraArguments) {
+    public RpcRequest putAllArg(HashMap<Class<?>, Object> extraArguments) {
         arguments.putAll(extraArguments);
         return this;
     }
 
     /* -- SERIALIZATION -- */
-    public static RPCRequest fromByteArray(byte[] rpcRequestBytes) throws IOException {
+    public static RpcRequest fromByteArray(byte[] rpcRequestBytes) throws IOException {
         try {
-            return (RPCRequest) Serializer.bytesToObject(rpcRequestBytes);
+            return (RpcRequest) Serializer.bytesToObject(rpcRequestBytes);
         } catch(ClassNotFoundException error) {
             return null;
         }
     }
 
-    public static byte[] toByteArray(RPCRequest rpcRequest) throws IOException {
+    public static byte[] toByteArray(RpcRequest rpcRequest) throws IOException {
         return Serializer.objectToBytes(rpcRequest);
     }
 

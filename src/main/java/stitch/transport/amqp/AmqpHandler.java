@@ -1,24 +1,25 @@
-package stitch.rpc.transport.amqp;
+package stitch.transport.amqp;
 
 import com.rabbitmq.client.*;
 import org.apache.log4j.Logger;
-import stitch.rpc.RPCRequest;
-import stitch.rpc.RPCResponse;
-import stitch.rpc.transport.RpcRequestHandler;
+import stitch.rpc.RpcRequest;
+import stitch.rpc.RpcResponse;
+import stitch.rpc.RpcRequestHandler;
+import stitch.transport.TransportHandler;
 
 import java.io.IOException;
 
-public class AMQPHandler implements DeliverCallback {
+public class AmqpHandler implements DeliverCallback {
 
-    static final Logger logger = Logger.getLogger(AMQPHandler.class);
+    static final Logger logger = Logger.getLogger(AmqpHandler.class);
 
-    private RpcRequestHandler rpcRequestHandler;
+    private TransportHandler transportHandler;
     private Channel channel;
     private Object monitor;
     private String exchange;
 
-    public AMQPHandler(RpcRequestHandler rpcRequestHandler, Channel channel, Object monitor, String exchange){
-        this.rpcRequestHandler = rpcRequestHandler;
+    public AmqpHandler(TransportHandler transportHandler, Channel channel, Object monitor, String exchange){
+        this.transportHandler = transportHandler;
         this.channel = channel;
         this.monitor = monitor;
         this.exchange = exchange;
@@ -34,13 +35,13 @@ public class AMQPHandler implements DeliverCallback {
 
         // Get the RPC request from the amqp body. Route it, fulfill it, then get and return the response bytes.
         logger.trace("RPC Request received!");
-        RPCRequest rpcRequest = RPCRequest.fromByteArray(delivery.getBody());
+        RpcRequest rpcRequest = RpcRequest.fromByteArray(delivery.getBody());
         logger.trace("RPC Response received!");
-        RPCResponse rpcResponse = rpcRequestHandler.handleRequest(rpcRequest);
+        RpcResponse rpcResponse = transportHandler.handleRequest(rpcRequest);
         logger.trace("RPC Response bytes received!");
         logger.trace("RPC Response Code: " + rpcResponse.getStatusCode());
         logger.trace("RPC Response Message: " + rpcResponse.getStatusMessage());
-        byte[] rpcResponseBytes = RPCResponse.toByteArray(rpcResponse);
+        byte[] rpcResponseBytes = RpcResponse.toByteArray(rpcResponse);
         logger.trace("RPC Response Length: " + rpcResponseBytes.length);
         logger.trace("Responding to: " + delivery.getProperties().getReplyTo());
         // Publish the reply to the caller and ack the message.

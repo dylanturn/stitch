@@ -1,14 +1,14 @@
-package stitch.rpc.transport.amqp;
+package stitch.transport.amqp;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import org.apache.log4j.Logger;
-import stitch.rpc.RPCRequest;
-import stitch.rpc.RPCResponse;
-import stitch.rpc.transport.RpcCallableAbstract;
-import stitch.rpc.transport.RpcCallableClient;
+import stitch.rpc.RpcRequest;
+import stitch.rpc.RpcResponse;
+import stitch.transport.Transport;
+import stitch.transport.TransportCallableClient;
 import stitch.util.configuration.item.ConfigItem;
 
 import java.io.IOException;
@@ -17,16 +17,16 @@ import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-public class AMQPClient extends RpcCallableAbstract implements RpcCallableClient {
+public class AmqpClient extends Transport implements TransportCallableClient {
 
-    private static final Logger logger = Logger.getLogger(AMQPClient.class);
+    private static final Logger logger = Logger.getLogger(AmqpClient.class);
 
     private String exchange;
     private Connection connection;
     private Channel channel;
     private Object monitor;
 
-    public AMQPClient(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+    public AmqpClient(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         super(endpointConfig);
 
         exchange = transportConfig.getConfigString("exchange");
@@ -42,12 +42,21 @@ public class AMQPClient extends RpcCallableAbstract implements RpcCallableClient
             URI amqpURI = URI.create(String.format("amqp://%s:%s@%s/%s", username, password, hostname, username));
             factory.setUri(amqpURI);
             connection = factory.newConnection();
+
             channel = connection.createChannel();
+
+            // Declare the exchange for this endpoint
+            channel.exchangeDeclare(exchange, "direct");
+
+            // Make sure the aggregators broadcast channel exists
+            channel.exchangeDeclare(String.format("%s_broadcast", exchange), "fanout");
+
             logger.debug("AMQP connected!");
         } catch(Exception error){
             logger.error(String.format("Failed to connect to the AMQP host: ",hostname), error);
         }
     }
+
 
     @Override
     public boolean isReady(){
@@ -63,9 +72,8 @@ public class AMQPClient extends RpcCallableAbstract implements RpcCallableClient
         return false;
     }
 
-
     @Override
-    public RPCResponse invokeRPC(RPCRequest rpcRequest) throws IOException, InterruptedException {
+    public RpcResponse invokeRPC(RpcRequest rpcRequest) throws IOException, InterruptedException {
 
         logger.trace("Invoke RPC");
 
@@ -89,13 +97,13 @@ public class AMQPClient extends RpcCallableAbstract implements RpcCallableClient
         // Publish the RPC call to the queue.
         rpcRequest.setSource(corrId);
         channel.queueDeclare(rpcRequest.getDestination(), false, false, false, null);
-        channel.basicPublish(exchange, rpcRequest.getDestination(), props, RPCRequest.toByteArray(rpcRequest));
+        channel.basicPublish(exchange, rpcRequest.getDestination(), props, RpcRequest.toByteArray(rpcRequest));
         final BlockingQueue<Object> response = new ArrayBlockingQueue<>(1);
 
         String ctag = channel.basicConsume(replyQueueName, true, (consumerTag, delivery) -> {
             if (delivery.getProperties().getCorrelationId().equals(corrId)) {
                 try {
-                    response.offer(RPCResponse.fromByteArray(delivery.getBody()));
+                    response.offer(RpcResponse.fromByteArray(delivery.getBody()));
                 } catch( ClassNotFoundException error) {
                     logger.error("Failed to load RPC response from bytes", error);
                 }
@@ -104,8 +112,16 @@ public class AMQPClient extends RpcCallableAbstract implements RpcCallableClient
         });
 
         logger.debug("Waiting for response...");
-        RPCResponse rpcResponse = (RPCResponse)response.take();
+        RpcResponse rpcResponse = (RpcResponse)response.take();
         channel.basicCancel(ctag);
         return rpcResponse;
+    }
+
+    public RpcResponse invokeBroadcast(RpcRequest rpcRequest) throws IOException, InterruptedException {
+        return null;
+    }
+
+    public RpcResponse invokeMulticast(RpcRequest rpcRequest) throws IOException, InterruptedException {
+        return null;
     }
 }

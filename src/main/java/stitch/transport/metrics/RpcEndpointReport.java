@@ -1,63 +1,44 @@
-package stitch.rpc.metrics;
+package stitch.transport.metrics;
 
 import java.io.*;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 
-public class RpcEndpointReport implements Serializable {
+public abstract class RpcEndpointReport implements Serializable {
 
     private static final long serialVersionUID = 5470L;
 
     private long reportTime;
     private boolean isNodeHealthy;
-    private String nodeId;
-    private long nodeUptime;
-    private RpcEndpointReporter rpcStats;
+    private String endpointId;
+    private long endpointUptime;
     private ArrayList<RpcEndpointAlarm> alarms = new ArrayList<>();
-    private HashMap<String, Object> extraData = new HashMap<>();
 
-    public RpcEndpointReport(String nodeId, boolean nodeHealthy, long nodeUptime){
+    public RpcEndpointReport(RpcEndpointReporter rpcEndpointReporter){
         this.reportTime = Instant.now().toEpochMilli();
-        this.isNodeHealthy = nodeHealthy;
-        this.nodeId = nodeId;
-        this.nodeUptime = nodeUptime;
+        this.isNodeHealthy = rpcEndpointReporter.isHealthy();
+        this.endpointId = rpcEndpointReporter.getEndpointId();
+        this.endpointUptime = Instant.now().toEpochMilli() - rpcEndpointReporter.getStartTime();
     }
 
     public long getReportTime(){
         return reportTime;
     }
 
-    public boolean getIsNodeHealthy(){
+    public boolean isHealthy(){
         return isNodeHealthy;
     }
 
-    public String getNodeId() {
-        return nodeId;
+    public String getEndpointId() {
+        return endpointId;
     }
 
-    public long getNodeUptime() {
-        return nodeUptime;
-    }
-
-    /* EXTRA DATA */
-    public HashMap<String, Object> getExtra() { return extraData; }
-
-    public RpcEndpointReport addExtra(String key, Object value) {
-        this.extraData.put(key, value);
-        return this;
-    }
-
-    public RpcEndpointReport addExtra(HashMap<String, Object> extraData) {
-        this.extraData.putAll(extraData);
-        return this;
+    public long getEndpointUptime() {
+        return endpointUptime;
     }
 
     /* HEALTH ALARMS */
-    public List<RpcEndpointAlarm> getAlarms(){
-        return alarms;
-    }
+    public RpcEndpointAlarm[] getAlarms(){return alarms.toArray( new RpcEndpointAlarm[0]); }
 
     public RpcEndpointReport addAlarm(RpcEndpointAlarm rpcEndpointAlarm) {
         alarms.add(rpcEndpointAlarm);
@@ -66,14 +47,6 @@ public class RpcEndpointReport implements Serializable {
 
     public RpcEndpointReport addAllAlarms(ArrayList<RpcEndpointAlarm> nodeRpcEndpointAlarms){
         this.alarms.addAll(nodeRpcEndpointAlarms);
-        return this;
-    }
-
-    /* RPC STATS */
-    public RpcEndpointReporter getRpcStats() { return rpcStats; }
-
-    public RpcEndpointReport setRpcStats(RpcEndpointReporter rpcStats) {
-        this.rpcStats = rpcStats;
         return this;
     }
 

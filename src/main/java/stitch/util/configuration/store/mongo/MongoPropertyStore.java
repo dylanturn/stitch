@@ -25,8 +25,6 @@ public class MongoPropertyStore extends ConfigStore {
     private String mongoEndpointCollection;
 
     public MongoPropertyStore() {
-        logger.trace("Loading settings from MongoDB");
-
         this.mongoAdminDB = this.readProperty("database");
         this.mongoEndpointCollection = readProperty("collection");
 

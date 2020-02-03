@@ -4,8 +4,12 @@ import com.mongodb.*;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Accumulators;
+import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.Filters;
 import org.apache.log4j.Logger;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.bson.types.Binary;
 import stitch.datastore.DataStoreServer;
 import stitch.resource.Resource;
@@ -68,7 +72,7 @@ public class MongoDataStoreServer extends DataStoreServer {
     }
 
     @Override
-    public void connect() {
+    public void connectBackend() {
         String dsProtocol = endpointConfig.getConfigString("protocol");
         String dsHost = endpointConfig.getConfigString("host");
         int dsPort = endpointConfig.getConfigInt("port");
@@ -78,7 +82,7 @@ public class MongoDataStoreServer extends DataStoreServer {
         String database = endpointConfig.getConfigString("database");
         String collection = endpointConfig.getConfigString("collection");
 
-        logger.info("Start a new DataStore instance...");
+        logger.info("Start a new DataStoreCallable instance...");
         logger.info("UUID:  " + endpointConfig.getConfigId());
         logger.info("Class: " + endpointConfig.getConfigString("class"));
         logger.info("Type: " + endpointConfig.getConfigString("type"));
@@ -163,6 +167,30 @@ public class MongoDataStoreServer extends DataStoreServer {
     @Override
     public ArrayList<Resource> findResources(String filter) {
         return listResources();
+    }
+
+    @Override
+    public long getResourceCount() {
+        long documentCount = mongoCollection.countDocuments();
+        logger.trace("Resource Count: " + documentCount);
+        return documentCount;
+    }
+
+    @Override
+    public long getUsedStorage() {
+        logger.trace("Get used storage!");
+        List<Bson> aggregation = Arrays.asList(
+            Aggregates.group(null, Accumulators.sum("totalSpace", "$meta.data_size"))
+        );
+
+        Iterator<Document> documentIterator = mongoCollection.aggregate(aggregation).iterator();
+
+        if(documentIterator.hasNext()){
+            Document document = documentIterator.next();
+            logger.info(document.toJson());
+            return Integer.parseInt(document.getString("totalSpace"));
+        }
+        return -1;
     }
 
 }

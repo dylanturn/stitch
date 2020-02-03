@@ -1,10 +1,13 @@
 package stitch.util.configuration.item;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ConfigItem {
+public class ConfigItem implements Serializable {
+
+    private static final long serialVersionUID = 3671L;
 
     private Map<String, Object> objectProps = new HashMap<>();
 

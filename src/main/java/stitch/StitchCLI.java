@@ -9,7 +9,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import stitch.aggregator.AggregatorClient;
-import stitch.rpc.metrics.RpcEndpointReport;
+import stitch.datastore.DataStoreReport;
 import stitch.resource.Resource;
 
 import java.io.IOException;
@@ -101,10 +101,6 @@ class StitchCLI implements Callable<Integer> {
                     getAndPrint(resourceId);
                     break;
 
-                case "stats":
-                    statsAndPrint();
-                    break;
-
                 case "new":
                     createResource(resourceType, resourceData);
                     break;
@@ -121,47 +117,45 @@ class StitchCLI implements Callable<Integer> {
         return 0;
     }
 
-    private void statsAndPrint(){
-        System.out.println("STATS?!");
-       // RpcEndpointReporter rpcStats = aggregatorClient.getRpcStats();
-       // System.out.println("Total Calls:   " + rpcStats.getTotalCalls());
-       // System.out.println("Success Calls: " + rpcStats.getTotalCalls());
-       // System.out.println("Failed Calls:  " + rpcStats.getTotalCalls());
-    }
-
     /*
 
     DATASTORES
 
      */
 
-    private void listAndPrintDataStores(){
+    private void listAndPrintDataStores() throws ClassNotFoundException {
         logger.trace("Execute list and print.");
         logger.trace("Is the RPC Client Connected: " + aggregatorClient.isRpcConnected());
         logger.trace("Is the RPC Client Ready: " + aggregatorClient.isRpcReady());
         printDataStoreTable(aggregatorClient.listDataStores());
     }
 
-    private void printDataStoreTable(ArrayList<RpcEndpointReport> dataStoreHealthReports){
+    private void printDataStoreTable(ArrayList<DataStoreReport> dataStoreReports) throws ClassNotFoundException {
         logger.trace("dataStoreHealthReports");
         if(!quiet) {
-            System.out.println("DataStore Count: " + dataStoreHealthReports.size());
-            if(dataStoreHealthReports.size() > 0) {
-                String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-20s |", "Aggregator ID", "DataStore ID", "Type", "Class", "Uptime");
+            System.out.println("DataStoreCallable Count: " + dataStoreReports.size());
+            if(dataStoreReports.size() > 0) {
+                String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-10s | %-25s | %-10s |", "AggregatorCallable ID", "DataStoreCallable ID", "Resource Count", "Used", "Total", "Class", "Uptime");
                 System.out.println(tableHeader);
             }
         }
-        for(RpcEndpointReport healthReport : dataStoreHealthReports) {
-            String storeId = healthReport.getNodeId();
-            logger.trace("Store Id: " + storeId);
-            long storeUptime = healthReport.getNodeUptime();
-            String storeType = "type_asdf"; //(String)healthReport.getExtra().get("type");
-            String storeClass = "class_asdf"; //(String)healthReport.getExtra().get("class");
-            String tableBody = storeId;
-            if(!quiet) {
-                tableBody = String.format("| %36s | %36s | %10s | %10s | %20s |", aggregatorId, storeId, storeType, storeClass, storeUptime);
+
+        for(DataStoreReport dataStoreReport : dataStoreReports) {
+            // TODO: trash the need for this null check
+            if(dataStoreReport != null) {
+                logger.trace("DataStoreCallable Report: " + dataStoreReport);
+                String storeId = dataStoreReport.getEndpointId();
+                long storeUptime = dataStoreReport.getEndpointUptime();
+                String[] storeClassArray = dataStoreReport.getDataStoreClass().getName().split("\\.");
+                long resourceCount = dataStoreReport.getResourceCount();
+                long usedStorageSpace = dataStoreReport.getUsedStorageSpace();
+                long totalSpace = dataStoreReport.getTotalStorageSpace();
+                String tableBody = storeId;
+                if (!quiet) {
+                    tableBody = String.format("| %36s | %36s | %10s | %10s | %10s | %25s | %10s |", aggregatorId, storeId, resourceCount, usedStorageSpace, totalSpace, storeClassArray[storeClassArray.length-1], storeUptime);
+                }
+                System.out.println(tableBody);
             }
-            System.out.println(tableBody);
         }
     }
 
@@ -180,7 +174,7 @@ class StitchCLI implements Callable<Integer> {
         if(!quiet) {
             System.out.println("Resource Count: " + resourceArrayList.size());
             if(resourceArrayList.size() > 0) {
-                String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-20s |", "Resource ID", "DataStore ID", "Type", "Size", "Timestamp");
+                String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-20s |", "Resource ID", "DataStoreCallable ID", "Type", "Size", "Timestamp");
                 System.out.println(tableHeader);
             }
         }
@@ -201,7 +195,7 @@ class StitchCLI implements Callable<Integer> {
     private void getAndPrint(String resourceId){
         Resource resource = aggregatorClient.getResource(resourceId);
         System.out.println("UUID:      " + resource.getUUID());
-        System.out.println("DataStore: " + resource.getMeta("datastoreId"));
+        System.out.println("DataStoreCallable: " + resource.getMeta("datastoreId"));
         System.out.println("Type:      " + resource.getMeta("data_type"));
         System.out.println("Size:      " + resource.getMeta("data_size"));
         System.out.println("Timestamp: " + resource.getMeta("created"));

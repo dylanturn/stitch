@@ -87,10 +87,10 @@ public class ExampleDataStore extends DataStoreServer {
 #### Transport
 ###### Transport Client
 ```java
-package stitch.rpc.transport.amqp;
+package stitch.transport.amqp;
 
-import stitch.rpc.transport.RpcCallableAbstract;
-import stitch.rpc.transport.RpcCallableClient;
+import stitch.transport.Transport;
+import stitch.transport.TransportCallableClient;
 import stitch.util.configuration.item.ConfigItem;
 
 public class HttpClient extends RpcCallableAbstract implements RpcCallableClient {
@@ -101,10 +101,10 @@ public class HttpClient extends RpcCallableAbstract implements RpcCallableClient
 ```
 ###### Transport Server
 ```java
-package stitch.rpc.transport.amqp;
+package stitch.transport.amqp;
 
-import stitch.rpc.transport.RpcCallableAbstract;
-import stitch.rpc.transport.RpcCallableServer;
+import stitch.transport.Transport;
+import stitch.transport.TransportCallableServer;
 import stitch.util.configuration.item.ConfigItem;
 
 public class HttpServer extends RpcCallableAbstract implements RpcCallableServer {
@@ -119,8 +119,7 @@ public class HttpServer extends RpcCallableAbstract implements RpcCallableServer
     "uuid": "95a6495db3ef46c5aa98b428127c2cd4",
     "name": "amqp",
     "type": "transport",
-    "class": "stitch.rpc.transport.amqp",
-    "client_class": "stitch.rpc.transport.amqp.AMQPClient",
-    "server_class": "stitch.rpc.transport.amqp.AMQPServer"
+    "class": "stitch.transport.amqp",
+    "client_class": Astitch.rpc.transport.amqp.AmqpClientch.rpc.transport.amqp.AMQPServer"
 }
 ```

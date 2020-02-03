@@ -1,4 +1,4 @@
-package stitch.rpc.metrics;
+package stitch.transport.metrics;
 
 import java.io.Serializable;
 
