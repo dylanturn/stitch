@@ -27,8 +27,6 @@ public class StatusReporter {
             this.dataStoreServer = dataStoreServer;
         }
 
-
-
         public void run()
         {
             System.out.println("Do stuff for: " + this.dataStoreServer.getId());

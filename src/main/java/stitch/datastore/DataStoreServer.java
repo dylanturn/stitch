@@ -64,6 +64,9 @@ public class DataStoreServer implements Runnable {
             logger.trace("Connecting to the RPC Transport");
             connectRpcTransport();
 
+            logger.trace("Start the status reporter");
+            this.statusReporter.schedule(2000,5000);
+
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
