@@ -14,7 +14,7 @@ import stitch.util.configuration.item.ConfigItem;
 import java.io.IOException;
 import java.net.URI;
 
-public class AmqpServer extends Transport implements TransportCallableServer {
+    public class AmqpServer extends Transport implements TransportCallableServer {
 
     private static final Logger logger = Logger.getLogger(AmqpServer.class);
 
@@ -75,11 +75,11 @@ public class AmqpServer extends Transport implements TransportCallableServer {
     private void declareExchanges() throws IOException {
         // Declare the directExchange for this endpoint
         logger.trace(String.format("Declaring AMQP Direct Exchange:             %s", directExchange));
-        channel.exchangeDeclare(directExchange, "direct");
+        channel.exchangeDeclare(directExchange, "direct", true);
 
         // Make sure the aggregators broadcast channel exists
         logger.trace(String.format("Declaring AMQP Fanout Exchange:             %s", broadcastExchange));
-        channel.exchangeDeclare(broadcastExchange, "fanout");
+        channel.exchangeDeclare(broadcastExchange, "fanout", true);
     }
 
     private void declareAndBindBroadcast() throws IOException {

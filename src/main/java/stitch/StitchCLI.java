@@ -9,8 +9,8 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import stitch.aggregator.AggregatorClient;
-import stitch.datastore.DataStoreReport;
 import stitch.resource.Resource;
+import stitch.util.EndpointStatus;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -130,33 +130,17 @@ class StitchCLI implements Callable<Integer> {
         printDataStoreTable(aggregatorClient.listDataStores());
     }
 
-    private void printDataStoreTable(ArrayList<DataStoreReport> dataStoreReports) throws ClassNotFoundException {
+    private void printDataStoreTable(ArrayList<EndpointStatus> endpointStatuses) throws ClassNotFoundException {
         logger.trace("dataStoreHealthReports");
         if(!quiet) {
-            System.out.println("DataStoreCallable Count: " + dataStoreReports.size());
-            if(dataStoreReports.size() > 0) {
+            System.out.println("DataStoreCallable Count: " + endpointStatuses.size());
+            if(endpointStatuses.size() > 0) {
                 String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-10s | %-25s | %-10s |", "AggregatorCallable ID", "DataStoreCallable ID", "Resource Count", "Used", "Total", "Class", "Uptime");
                 System.out.println(tableHeader);
             }
         }
 
-        for(DataStoreReport dataStoreReport : dataStoreReports) {
-            // TODO: trash the need for this null check
-            if(dataStoreReport != null) {
-                logger.trace("DataStoreCallable Report: " + dataStoreReport);
-                String storeId = dataStoreReport.getEndpointId();
-                long storeUptime = dataStoreReport.getEndpointUptime();
-                String[] storeClassArray = dataStoreReport.getDataStoreClass().getName().split("\\.");
-                long resourceCount = dataStoreReport.getResourceCount();
-                long usedStorageSpace = dataStoreReport.getUsedStorageSpace();
-                long totalSpace = dataStoreReport.getTotalStorageSpace();
-                String tableBody = storeId;
-                if (!quiet) {
-                    tableBody = String.format("| %36s | %36s | %10s | %10s | %10s | %25s | %10s |", aggregatorId, storeId, resourceCount, usedStorageSpace, totalSpace, storeClassArray[storeClassArray.length-1], storeUptime);
-                }
-                System.out.println(tableBody);
-            }
-        }
+
     }
 
     /*

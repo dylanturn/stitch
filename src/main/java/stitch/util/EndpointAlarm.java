@@ -1,8 +1,8 @@
-package stitch.transport.metrics;
+package stitch.util;
 
 import java.io.Serializable;
 
-public class RpcEndpointAlarm implements Serializable {
+public class EndpointAlarm implements Serializable {
 
     private static final long serialVersionUID = 6894L;
 
@@ -11,7 +11,7 @@ public class RpcEndpointAlarm implements Serializable {
     private String alarmName;
     private String alarmDescription;
 
-    public RpcEndpointAlarm(String subjectId, AlarmSeverity severity, String alarmName, String alarmDescription) {
+    public EndpointAlarm(String subjectId, AlarmSeverity severity, String alarmName, String alarmDescription) {
         this.subjectId = subjectId;
         this.severity = severity;
         this.alarmName = alarmName;

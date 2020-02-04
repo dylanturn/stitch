@@ -2,46 +2,53 @@ package stitch.datastore;
 
 
 import org.apache.log4j.Logger;
+import stitch.aggregator.AggregatorServer;
 import stitch.resource.ResourceCallable;
 import stitch.transport.TransportCallableServer;
 import stitch.rpc.RpcRequestHandler;
 import stitch.transport.TransportFactory;
 import stitch.util.configuration.item.ConfigItem;
+import sun.security.krb5.Config;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.time.Instant;
 
-public abstract class DataStoreServer implements DataStoreCallable, ResourceCallable, Runnable {
+public class DataStoreServer implements Runnable {
 
     static final Logger logger = Logger.getLogger(DataStoreServer.class);
     protected ConfigItem endpointConfig;
     protected TransportCallableServer rpcServer;
-
-    protected long totalStorageSpace;
-    protected long usedStorageSpace;
-    protected long resourceCount;
+    private StatusReporter statusReporter;
+    private long startTime;
+    private DataStoreCallable callableDataStore;
 
     public DataStoreServer(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException, InvocationTargetException, NoSuchMethodException {
         this.endpointConfig = endpointConfig;
-        rpcServer = TransportFactory.newRpcServer(endpointConfig.getConfigId(), new RpcRequestHandler(this));
+        this.startTime = Instant.now().toEpochMilli();
+        statusReporter = new StatusReporter(this);
+    }
+
+    private void connectDataStoreBackend() throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
+        Class<? extends DataStoreCallable> dataStoreCallableClass = endpointConfig.getConfigClass("class");
+        Constructor<?> dataStoreCallableClassConstructor = dataStoreCallableClass.getConstructor(ConfigItem.class);
+        this.callableDataStore = (DataStoreCallable) dataStoreCallableClassConstructor.newInstance(endpointConfig);
     }
 
     private void connectRpcTransport() throws IllegalAccessException, ClassNotFoundException, InstantiationException, InvocationTargetException, NoSuchMethodException {
-        rpcServer = TransportFactory.newRpcServer(endpointConfig.getConfigId(), new RpcRequestHandler(this));
+        rpcServer = TransportFactory.newRpcServer(endpointConfig.getConfigId(), new RpcRequestHandler(callableDataStore));
         new Thread(rpcServer).start();
     }
 
-    @Override
-    public DataStoreReport getEndpointReport() {
-        totalStorageSpace = endpointConfig.getConfigLong("totalStorageSpace");
-        usedStorageSpace = getUsedStorage();
-        resourceCount = getResourceCount();
-        rpcServer.getRpcEndpointReporter().addExtra("totalStorageSpace", totalStorageSpace);
-        rpcServer.getRpcEndpointReporter().addExtra("usedStorageSpace", usedStorageSpace);
-        rpcServer.getRpcEndpointReporter().addExtra("resourceCount", resourceCount);
-        return new DataStoreReport(endpointConfig, rpcServer.getRpcEndpointReporter());
+    public String getId(){
+        return this.endpointConfig.getConfigId();
     }
-
-    public abstract void connectBackend();
+    public long getStartTime(){
+        return this.startTime;
+    }
+    public TransportCallableServer getRpcServer(){
+        return rpcServer;
+    }
 
     @Override
     public void run() {
@@ -50,7 +57,8 @@ public abstract class DataStoreServer implements DataStoreCallable, ResourceCall
         try {
 
             // Do whatever needs to be done to connect to the DataStoreCallable backend.
-            this.connectBackend();
+            logger.trace("Connecting to the DataStores backend");
+            connectDataStoreBackend();
 
             // Start up the RPC transport
             logger.trace("Connecting to the RPC Transport");

@@ -46,10 +46,10 @@ public class AmqpClient extends Transport implements TransportCallableClient {
             channel = connection.createChannel();
 
             // Declare the exchange for this endpoint
-            channel.exchangeDeclare(exchange, "direct");
+            channel.exchangeDeclare(exchange, "direct", true);
 
             // Make sure the aggregators broadcast channel exists
-            channel.exchangeDeclare(String.format("%s_broadcast", exchange), "fanout");
+            channel.exchangeDeclare(String.format("%s_broadcast", exchange), "fanout", true);
 
             logger.debug("AMQP connected!");
         } catch(Exception error){

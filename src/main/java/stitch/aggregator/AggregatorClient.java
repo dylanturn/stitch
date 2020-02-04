@@ -2,14 +2,12 @@ package stitch.aggregator;
 
 import org.apache.log4j.Logger;
 import stitch.aggregator.metastore.MetaStoreCallable;
-import stitch.datastore.DataStoreReport;
 import stitch.resource.ResourceCallable;
-import stitch.rpc.RpcResponse;
-import stitch.rpc.RpcStatusCode;
 import stitch.rpc.RpcRequest;
 import stitch.resource.Resource;
 import stitch.transport.TransportCallableClient;
 import stitch.transport.TransportFactory;
+import stitch.util.EndpointStatus;
 import stitch.util.configuration.item.ConfigItem;
 import stitch.util.configuration.store.ConfigStore;
 
@@ -110,22 +108,8 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
     }
 
     @Override
-    public ArrayList<DataStoreReport> listDataStores() {
-        try {
-            RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "listDataStores");
-            RpcResponse rpcResponse = rpcClient.invokeRPC(rpcRequest);
-
-            if(rpcResponse.getStatusCode() == RpcStatusCode.OK){
-                return (ArrayList<DataStoreReport>)rpcResponse.getResponseObject();
-            } else {
-                logger.warn("Response Code:    " + rpcResponse.getStatusCode());
-                logger.warn("Response Message: " + rpcResponse.getStatusMessage());
-                return null;
-            }
-        } catch(Exception error){
-            logger.error("Failed to list resources!", error);
-            return null;
-        }
+    public ArrayList<EndpointStatus> listDataStores() {
+        return null;
     }
 
     @Override

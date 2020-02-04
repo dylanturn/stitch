@@ -19,7 +19,6 @@ public class DataStoreClient implements DataStoreCallable, ResourceCallable {
 
     protected ConfigItem endpointConfig;
     protected TransportCallableClient rpcClient;
-    protected DataStoreReport peerEndpointReport;
 
     public DataStoreClient(String endpointId) throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException {
         endpointConfig = ConfigStore.loadConfigStore().getConfigItemById(endpointId);
@@ -76,21 +75,5 @@ public class DataStoreClient implements DataStoreCallable, ResourceCallable {
     @Override
     public ArrayList<Resource> findResources(String filter) {
         return listResources();
-    }
-
-
-    @Override
-    public DataStoreReport getEndpointReport() throws IOException, InterruptedException, ClassNotFoundException {
-        return peerEndpointReport;
-    }
-
-    @Override
-    public long getResourceCount() {
-        return peerEndpointReport.getResourceCount();
-    }
-
-    @Override
-    public long getUsedStorage() {
-        return peerEndpointReport.getUsedStorageSpace();
     }
 }

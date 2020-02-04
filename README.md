@@ -1,6 +1,12 @@
 # Stitch
 [![CodeFactor](https://www.codefactor.io/repository/github/dylanturn/stitch/badge?s=13a678130938a23ae3e3f6d2b62050ea40634cd2)](https://www.codefactor.io/repository/github/dylanturn/stitch)
 
+## TODO:
+1. The Aggregator needs a fanout queue. DataStore servers will create transport clients and send updated implementations of EndpointRecord.
+2. Aggregator metastores need to keep track of the Endpoint records tha the datastores are sending in.
+3. Maybe some way to track resource availability by the state of the host datastore?
+4. Also need to think about eventually implementing the ability to have resource replicas. 
+
 ## Getting Started
 ```bash
 # Starting the DataStore services

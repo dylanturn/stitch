@@ -1,11 +1,7 @@
 package stitch.datastore;
 
-import stitch.transport.metrics.RpcEndpointReport;
+import stitch.resource.ResourceCallable;
 
-import java.io.IOException;
+public interface DataStoreCallable extends ResourceCallable {
 
-public interface DataStoreCallable {
-    RpcEndpointReport getEndpointReport() throws IOException, InterruptedException, ClassNotFoundException;
-    long getResourceCount();
-    long getUsedStorage();
 }

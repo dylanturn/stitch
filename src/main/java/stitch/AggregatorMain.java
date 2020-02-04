@@ -54,7 +54,7 @@ public class AggregatorMain {
         }
     }
     private static void startAggregatorServer(ConfigItem aggregatorConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException {
-        AggregatorServer aggregatorServer = AggregatorFactory.create(aggregatorConfig.getConfigId());
+        AggregatorServer aggregatorServer = new AggregatorServer(aggregatorConfig);
         Thread aggregatorThread = new Thread(aggregatorServer);
         aggregatorThreads.put(aggregatorConfig.getConfigId(), aggregatorThread);
         aggregatorHash.put(aggregatorConfig.getConfigId(), aggregatorServer);

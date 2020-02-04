@@ -6,10 +6,8 @@ import org.apache.log4j.Logger;
 
 import stitch.aggregator.AggregatorServer;
 import stitch.aggregator.metastore.MetaStoreCallable;
-import stitch.datastore.DataStoreReport;
 import stitch.resource.Resource;
-import stitch.resource.ResourceCallable;
-import stitch.transport.TransportHandler;
+import stitch.util.EndpointStatus;
 import stitch.util.configuration.item.ConfigItem;
 
 import java.util.ArrayList;
@@ -17,14 +15,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class RedisAggregatorServer implements MetaStoreCallable {
+public class RedisAggregator implements MetaStoreCallable {
 
-    static final Logger logger = Logger.getLogger(RedisAggregatorServer.class);
+    static final Logger logger = Logger.getLogger(RedisAggregator.class);
 
     private AggregatorServer aggregatorServer;
     private Client redisearchClient;
 
-    public RedisAggregatorServer(AggregatorServer aggregatorServer) throws IllegalAccessException, ClassNotFoundException, InstantiationException {
+    public RedisAggregator(AggregatorServer aggregatorServer) throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         this.aggregatorServer = aggregatorServer;
 
         ConfigItem aggregatorConfig = aggregatorServer.getEndpointConfig();
@@ -170,7 +168,7 @@ public class RedisAggregatorServer implements MetaStoreCallable {
     }
 
     @Override
-    public ArrayList<DataStoreReport> listDataStores() {
+    public ArrayList<EndpointStatus> listDataStores() {
         return null;
     }
 }

@@ -11,8 +11,10 @@ import org.apache.log4j.Logger;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.Binary;
+import stitch.datastore.DataStoreCallable;
 import stitch.datastore.DataStoreServer;
 import stitch.resource.Resource;
+import stitch.resource.ResourceCallable;
 import stitch.util.configuration.item.ConfigItem;
 
 import java.lang.reflect.InvocationTargetException;
@@ -21,7 +23,7 @@ import java.util.*;
 import static com.mongodb.client.model.Projections.fields;
 import static com.mongodb.client.model.Projections.include;
 
-public class MongoDataStoreServer extends DataStoreServer {
+public class MongoDataStoreServer implements DataStoreCallable {
 
     static final Logger logger = Logger.getLogger(MongoDataStoreServer.class);
 
@@ -29,9 +31,39 @@ public class MongoDataStoreServer extends DataStoreServer {
     private MongoClient mongoClient;
     private MongoDatabase mongoDatabase;
     private MongoCollection<Document> mongoCollection;
+    private ConfigItem endpointConfig;
 
     public MongoDataStoreServer(ConfigItem dataStoreConfig) throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
-        super(dataStoreConfig);
+        endpointConfig = dataStoreConfig;
+
+        String dsProtocol = endpointConfig.getConfigString("protocol");
+        String dsHost = endpointConfig.getConfigString("host");
+        int dsPort = endpointConfig.getConfigInt("port");
+        String dsUsername = endpointConfig.getConfigString("username");
+        String dsPassword = endpointConfig.getConfigString("password");
+        String dsOptions = endpointConfig.getConfigString("options");
+        String database = endpointConfig.getConfigString("database");
+        String collection = endpointConfig.getConfigString("collection");
+
+        logger.info("Start a new DataStoreCallable instance...");
+        logger.info("UUID:  " + endpointConfig.getConfigId());
+        logger.info("Class: " + endpointConfig.getConfigString("class"));
+        logger.info("Type: " + endpointConfig.getConfigString("type"));
+        logger.info("Host: " + endpointConfig.getConfigString("host"));
+        logger.info("Options: " + endpointConfig.getConfigString("options"));
+        logger.info("Database: " + endpointConfig.getConfigString("database"));
+        logger.info("Collection: " + endpointConfig.getConfigString("collection"));
+
+        try {
+            dsURI = String.format("%s://%s:%s@%s/%s?%s", dsProtocol, dsUsername, dsPassword, dsHost, database, dsOptions);
+            MongoClientURI mongoClientURI = new MongoClientURI(dsURI);
+            mongoClient = new MongoClient(mongoClientURI);
+            mongoDatabase = mongoClient.getDatabase(database);
+            this.mongoCollection = mongoDatabase.getCollection(collection);
+        } catch(Exception error){
+            logger.error("Failed to load the collection!");
+            logger.error(error);
+        }
     }
 
     private static Document fromResource(Resource resource) {
@@ -68,38 +100,6 @@ public class MongoDataStoreServer extends DataStoreServer {
             return new Resource(uuid, metaMap, document.get("data", Binary.class).getData());
         } else {
             return new Resource(uuid, metaMap, null);
-        }
-    }
-
-    @Override
-    public void connectBackend() {
-        String dsProtocol = endpointConfig.getConfigString("protocol");
-        String dsHost = endpointConfig.getConfigString("host");
-        int dsPort = endpointConfig.getConfigInt("port");
-        String dsUsername = endpointConfig.getConfigString("username");
-        String dsPassword = endpointConfig.getConfigString("password");
-        String dsOptions = endpointConfig.getConfigString("options");
-        String database = endpointConfig.getConfigString("database");
-        String collection = endpointConfig.getConfigString("collection");
-
-        logger.info("Start a new DataStoreCallable instance...");
-        logger.info("UUID:  " + endpointConfig.getConfigId());
-        logger.info("Class: " + endpointConfig.getConfigString("class"));
-        logger.info("Type: " + endpointConfig.getConfigString("type"));
-        logger.info("Host: " + endpointConfig.getConfigString("host"));
-        logger.info("Options: " + endpointConfig.getConfigString("options"));
-        logger.info("Database: " + endpointConfig.getConfigString("database"));
-        logger.info("Collection: " + endpointConfig.getConfigString("collection"));
-
-        try {
-            dsURI = String.format("%s://%s:%s@%s/%s?%s", dsProtocol, dsUsername, dsPassword, dsHost, database, dsOptions);
-            MongoClientURI mongoClientURI = new MongoClientURI(dsURI);
-            mongoClient = new MongoClient(mongoClientURI);
-            mongoDatabase = mongoClient.getDatabase(database);
-            this.mongoCollection = mongoDatabase.getCollection(collection);
-        } catch(Exception error){
-            logger.error("Failed to load the collection!");
-            logger.error(error);
         }
     }
 
@@ -167,30 +167,6 @@ public class MongoDataStoreServer extends DataStoreServer {
     @Override
     public ArrayList<Resource> findResources(String filter) {
         return listResources();
-    }
-
-    @Override
-    public long getResourceCount() {
-        long documentCount = mongoCollection.countDocuments();
-        logger.trace("Resource Count: " + documentCount);
-        return documentCount;
-    }
-
-    @Override
-    public long getUsedStorage() {
-        logger.trace("Get used storage!");
-        List<Bson> aggregation = Arrays.asList(
-            Aggregates.group(null, Accumulators.sum("totalSpace", "$meta.data_size"))
-        );
-
-        Iterator<Document> documentIterator = mongoCollection.aggregate(aggregation).iterator();
-
-        if(documentIterator.hasNext()){
-            Document document = documentIterator.next();
-            logger.info(document.toJson());
-            return Integer.parseInt(document.getString("totalSpace"));
-        }
-        return -1;
     }
 
 }

@@ -11,13 +11,14 @@ import stitch.util.configuration.item.ConfigItem;
 import stitch.util.configuration.item.ConfigItemType;
 import stitch.util.configuration.store.ConfigStore;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
 public class DataStoreMain {
 
     private static final Logger logger = Logger.getLogger(DataStoreMain.class);
-    private static Map<String,DataStoreCallable> providerHash = new HashMap<>();
+    private static Map<String,DataStoreServer> providerHash = new HashMap<>();
     private static Map<String,Thread> providerThreads = new HashMap<>();
 
     public static void main(String[] args) throws Exception {
@@ -34,33 +35,27 @@ public class DataStoreMain {
             }
         }
 
-
         if(dataStoreId == null) {
             // Create an instance of each DataStoreCallable.
             for (ConfigItem configItem : configStore.listConfigByItemType(ConfigItemType.DATASTORE)) {
-                DataStoreServer dataStore = DataStoreFactory.createDataStore(configItem.getConfigId());
-                Thread providerThread = new Thread(dataStore);
-                providerThreads.put(configItem.getConfigId(), providerThread);
-                providerHash.put(configItem.getConfigId(), dataStore);
-                //providerThread.setName(String.format("DataStoreCallable-%s", configItem.getConfigId()));
-                providerThread.start();
-                logger.info("DataStoreCallable instance started!!!");
+                startDataStoreServer(configItem);
             }
         } else {
             logger.info("Starting DataStoreCallable with Id: " + dataStoreId);
-            // Start the DataStoreCallable we specified.
-            DataStoreServer dataStore = DataStoreFactory.createDataStore(dataStoreId);
-            Thread providerThread = new Thread(dataStore);
-            providerThreads.put(dataStoreId, providerThread);
-            providerHash.put(dataStoreId, dataStore);
-            //providerThread.setName(String.format("DataStoreCallable-%s", dataStoreId));
-            providerThread.start();
-            logger.info("DataStoreCallable instance started!!!");
+            startDataStoreServer(ConfigStore.loadConfigStore().getConfigItemById(dataStoreId));
         }
 
         logger.info("Dataprovider started. Waiting for requests...");
         while (true){
             Thread.sleep(5000);
         }
+    }
+    private static void startDataStoreServer(ConfigItem endpoingConfig) throws ClassNotFoundException, InvocationTargetException, InstantiationException, NoSuchMethodException, IllegalAccessException {
+        DataStoreServer dataStore = new DataStoreServer(endpoingConfig);
+        Thread providerThread = new Thread(dataStore);
+        providerThreads.put(endpoingConfig.getConfigId(), providerThread);
+        providerHash.put(endpoingConfig.getConfigId(), dataStore);
+        providerThread.start();
+        logger.info("DataStoreCallable instance started!!!");
     }
 }

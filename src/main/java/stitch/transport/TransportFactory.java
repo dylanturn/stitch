@@ -17,12 +17,12 @@ public class TransportFactory {
         return (TransportCallableClient)rpcClientClassConstructor.newInstance(endpointConfig);
     }
 
-    public static TransportCallableServer newRpcServer(String endpointId, RpcRequestHandler rpcRequestHandler) throws IllegalAccessException, InstantiationException, ClassNotFoundException, InvocationTargetException, NoSuchMethodException {
+    public static TransportCallableServer newRpcServer(String endpointId, TransportHandler transportHandler) throws IllegalAccessException, InstantiationException, ClassNotFoundException, InvocationTargetException, NoSuchMethodException {
         ConfigItem endpointConfig = ConfigStore.loadConfigStore().getConfigItemById(endpointId);
         ConfigItem transportConfig = ConfigStore.loadConfigStore().getConfigItemById(endpointConfig.getConfigString("transport"));
         Class<? extends TransportCallableServer> rpcServerClass = transportConfig.getConfigClass("server_class");
-        Constructor<?> rpcServerClassConstructor = rpcServerClass.getConstructor(ConfigItem.class, RpcRequestHandler.class);
-        return (TransportCallableServer)rpcServerClassConstructor.newInstance(endpointConfig, rpcRequestHandler);
+        Constructor<?> rpcServerClassConstructor = rpcServerClass.getConstructor(ConfigItem.class, TransportHandler.class);
+        return (TransportCallableServer)rpcServerClassConstructor.newInstance(endpointConfig, transportHandler);
     }
 
 }
