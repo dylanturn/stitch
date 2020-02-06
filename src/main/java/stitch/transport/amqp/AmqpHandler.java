@@ -15,7 +15,7 @@ public class AmqpHandler implements DeliverCallback {
 
     private TransportHandler transportHandler;
     private Channel channel;
-    private Object monitor;
+    private final Object monitor;
     private String exchange;
 
     public AmqpHandler(TransportHandler transportHandler, Channel channel, Object monitor, String exchange){
@@ -27,6 +27,7 @@ public class AmqpHandler implements DeliverCallback {
 
     @Override
     public void handle(String consumerTag, Delivery delivery) throws IOException {
+
         logger.trace("Handling AMQP delivery!");
         AMQP.BasicProperties replyProps = new AMQP.BasicProperties
                 .Builder()
@@ -43,10 +44,14 @@ public class AmqpHandler implements DeliverCallback {
         logger.trace("RPC Response Message: " + rpcResponse.getStatusMessage());
         byte[] rpcResponseBytes = RpcResponse.toByteArray(rpcResponse);
         logger.trace("RPC Response Length: " + rpcResponseBytes.length);
-        logger.trace("Responding to: " + delivery.getProperties().getReplyTo());
-        // Publish the reply to the caller and ack the message.
-        logger.trace("RPC Channel Open: " + channel.isOpen());
-        channel.basicPublish("", delivery.getProperties().getReplyTo(), replyProps, rpcResponseBytes);
+
+        // If this was a broadcast then there's nothing to return.
+        if(delivery.getProperties().getReplyTo() != null){
+            // Publish the reply to the caller and ack the message.
+            logger.trace("Responding to: " + delivery.getProperties().getReplyTo());
+            channel.basicPublish(exchange, delivery.getProperties().getReplyTo(), replyProps, rpcResponseBytes);
+        }
+
         channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
         synchronized (monitor) {
             monitor.notify();

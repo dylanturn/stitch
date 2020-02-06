@@ -51,7 +51,7 @@ public class DataStoreMain {
         }
     }
     private static void startDataStoreServer(ConfigItem endpoingConfig) throws ClassNotFoundException, InvocationTargetException, InstantiationException, NoSuchMethodException, IllegalAccessException {
-        DataStoreServer dataStore = new DataStoreServer(endpoingConfig);
+        DataStoreServer dataStore = DataStoreFactory.createDataStore(endpoingConfig);
         Thread providerThread = new Thread(dataStore);
         providerThreads.put(endpoingConfig.getConfigId(), providerThread);
         providerHash.put(endpoingConfig.getConfigId(), dataStore);

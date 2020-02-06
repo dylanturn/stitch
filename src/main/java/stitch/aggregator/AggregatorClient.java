@@ -2,6 +2,7 @@ package stitch.aggregator;
 
 import org.apache.log4j.Logger;
 import stitch.aggregator.metastore.MetaStoreCallable;
+import stitch.datastore.DataStoreStatus;
 import stitch.resource.ResourceCallable;
 import stitch.rpc.RpcRequest;
 import stitch.resource.Resource;
@@ -11,6 +12,7 @@ import stitch.util.EndpointStatus;
 import stitch.util.configuration.item.ConfigItem;
 import stitch.util.configuration.store.ConfigStore;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,7 +48,7 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
         try {
             return (boolean) rpcClient.invokeRPC(rpcRequest).getResponseObject();
         } catch(Exception error){
-            logger.error("Failed to update the resource: " + resource.getUUID(), error);
+            logger.error("Failed to update the resource: " + resource.getID(), error);
             return false;
         }
     }
@@ -118,12 +120,19 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
                 .putStringArg(datastoreId)
                 .putResourceArg(resource);
         try {
-            logger.info(String.format("Registering resource: %s", resource.getUUID()));
+            logger.info(String.format("Registering resource: %s", resource.getID()));
             logger.info(String.format("Datastore Id:         %s", datastoreId));
             logger.info(String.format("Route Key:            %s", rpcClient.getRpcAddress()));
             rpcClient.invokeRPC(rpcRequest);
         } catch(Exception error){
             logger.error("Failed to register resource!", error);
         }
+    }
+
+    @Override
+    public void reportDataStoreStatus(DataStoreStatus dataStoreStatus) throws IOException, InterruptedException {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "reportDataStoreStatus")
+                .putArg(DataStoreStatus.class, dataStoreStatus);
+        rpcClient.broadcastRPC(rpcRequest);
     }
 }

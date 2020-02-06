@@ -4,17 +4,11 @@ import com.mongodb.*;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.model.Accumulators;
-import com.mongodb.client.model.Aggregates;
-import com.mongodb.client.model.Filters;
 import org.apache.log4j.Logger;
 import org.bson.Document;
-import org.bson.conversions.Bson;
 import org.bson.types.Binary;
-import stitch.datastore.DataStoreCallable;
 import stitch.datastore.DataStoreServer;
 import stitch.resource.Resource;
-import stitch.resource.ResourceCallable;
 import stitch.util.configuration.item.ConfigItem;
 
 import java.lang.reflect.InvocationTargetException;
@@ -23,7 +17,7 @@ import java.util.*;
 import static com.mongodb.client.model.Projections.fields;
 import static com.mongodb.client.model.Projections.include;
 
-public class MongoDataStoreServer implements DataStoreCallable {
+public class MongoDataStoreServer extends DataStoreServer {
 
     static final Logger logger = Logger.getLogger(MongoDataStoreServer.class);
 
@@ -31,10 +25,9 @@ public class MongoDataStoreServer implements DataStoreCallable {
     private MongoClient mongoClient;
     private MongoDatabase mongoDatabase;
     private MongoCollection<Document> mongoCollection;
-    private ConfigItem endpointConfig;
 
     public MongoDataStoreServer(ConfigItem dataStoreConfig) throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
-        endpointConfig = dataStoreConfig;
+        super(dataStoreConfig);
 
         String dsProtocol = endpointConfig.getConfigString("protocol");
         String dsHost = endpointConfig.getConfigString("host");
@@ -73,7 +66,7 @@ public class MongoDataStoreServer implements DataStoreCallable {
     private static Document fromResource(Resource resource, boolean includeData){
         Document document = new Document();
         Document metaDocument = new Document();
-        document.put("uuid", resource.getUUID());
+        document.put("uuid", resource.getID());
         metaDocument.putAll(resource.getMetaMap());
         document.put("meta", metaDocument);
         if(includeData) {
@@ -106,11 +99,11 @@ public class MongoDataStoreServer implements DataStoreCallable {
     @Override
     public String createResource(Resource resource) {
         try {
-            logger.info(String.format("Creating resource: %s", resource.getUUID()));
+            logger.info(String.format("Creating resource: %s", resource.getID()));
             MongoDatabase mdb = mongoClient.getDatabase(endpointConfig.getConfigString("database"));
             MongoCollection<Document> mcol = mdb.getCollection(endpointConfig.getConfigString("collection"));
             mcol.insertOne(fromResource(resource));
-            return resource.getUUID();
+            return resource.getID();
         } catch(Exception error){
             logger.error("Mongo Update Failed!", error);
             return null;
@@ -119,9 +112,9 @@ public class MongoDataStoreServer implements DataStoreCallable {
 
     @Override
     public boolean updateResource(Resource resource) {
-        logger.trace(String.format("Updating resource: %s", resource.getUUID()));
+        logger.trace(String.format("Updating resource: %s", resource.getID()));
         BasicDBObject query = new BasicDBObject();
-        query.put("uuid", resource.getUUID());
+        query.put("uuid", resource.getID());
         return mongoCollection.updateOne(query, fromResource(resource)).wasAcknowledged();
     }
 

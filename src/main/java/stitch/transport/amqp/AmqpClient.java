@@ -7,6 +7,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import org.apache.log4j.Logger;
 import stitch.rpc.RpcRequest;
 import stitch.rpc.RpcResponse;
+import stitch.transport.TransmitMode;
 import stitch.transport.Transport;
 import stitch.transport.TransportCallableClient;
 import stitch.util.configuration.item.ConfigItem;
@@ -21,7 +22,11 @@ public class AmqpClient extends Transport implements TransportCallableClient {
 
     private static final Logger logger = Logger.getLogger(AmqpClient.class);
 
-    private String exchange;
+    private String amqpServerType;
+    private String baseExchange;
+    private String directExchange;
+    private String broadcastExchange;
+
     private Connection connection;
     private Channel channel;
     private Object monitor;
@@ -29,7 +34,11 @@ public class AmqpClient extends Transport implements TransportCallableClient {
     public AmqpClient(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         super(endpointConfig);
 
-        exchange = transportConfig.getConfigString("exchange");
+        baseExchange = transportConfig.getConfigString("exchange");
+        amqpServerType = endpointConfig.getConfigType().toString();
+        directExchange = String.format("%s.%s.direct", baseExchange, amqpServerType);
+        broadcastExchange = String.format("%s.%s.broadcast", baseExchange, amqpServerType);
+
         String username = transportConfig.getConfigString("username");
         String password = transportConfig.getConfigString("password");
         String hostname = transportConfig.getConfigString("host");
@@ -45,16 +54,23 @@ public class AmqpClient extends Transport implements TransportCallableClient {
 
             channel = connection.createChannel();
 
-            // Declare the exchange for this endpoint
-            channel.exchangeDeclare(exchange, "direct", true);
-
-            // Make sure the aggregators broadcast channel exists
-            channel.exchangeDeclare(String.format("%s_broadcast", exchange), "fanout", true);
+            // Declare the AMQP exchanges we'll be communicating over.
+            declareExchanges();
 
             logger.debug("AMQP connected!");
         } catch(Exception error){
             logger.error(String.format("Failed to connect to the AMQP host: ",hostname), error);
         }
+    }
+
+    private void declareExchanges() throws IOException {
+        // Declare the directExchange for this endpoint
+        logger.trace(String.format("Declaring AMQP Direct Exchange:             %s", directExchange));
+        channel.exchangeDeclare(directExchange, "direct", true);
+
+        // Make sure the aggregators broadcast channel exists
+        logger.trace(String.format("Declaring AMQP Fanout Exchange:             %s", broadcastExchange));
+        channel.exchangeDeclare(broadcastExchange, "fanout", true);
     }
 
 
@@ -97,7 +113,7 @@ public class AmqpClient extends Transport implements TransportCallableClient {
         // Publish the RPC call to the queue.
         rpcRequest.setSource(corrId);
         channel.queueDeclare(rpcRequest.getDestination(), false, false, false, null);
-        channel.basicPublish(exchange, rpcRequest.getDestination(), props, RpcRequest.toByteArray(rpcRequest));
+        channel.basicPublish(directExchange, rpcRequest.getDestination(), props, RpcRequest.toByteArray(rpcRequest));
         final BlockingQueue<Object> response = new ArrayBlockingQueue<>(1);
 
         String ctag = channel.basicConsume(replyQueueName, true, (consumerTag, delivery) -> {
@@ -117,11 +133,13 @@ public class AmqpClient extends Transport implements TransportCallableClient {
         return rpcResponse;
     }
 
-    public RpcResponse invokeBroadcast(RpcRequest rpcRequest) throws IOException, InterruptedException {
-        return null;
-    }
-
-    public RpcResponse invokeMulticast(RpcRequest rpcRequest) throws IOException, InterruptedException {
-        return null;
+    @Override
+    public void broadcastRPC(RpcRequest rpcRequest) throws IOException, InterruptedException {
+        AMQP.BasicProperties props = new AMQP.BasicProperties
+                .Builder()
+                .expiration("5000")
+                .build();
+        channel.queueDeclare(rpcRequest.getDestination(), false, false, false, null);
+        channel.basicPublish(broadcastExchange, rpcRequest.getDestination(), props, RpcRequest.toByteArray(rpcRequest));
     }
 }

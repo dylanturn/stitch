@@ -1,5 +1,9 @@
 package stitch.datastore;
 
+import stitch.aggregator.AggregatorClient;
+
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -7,10 +11,8 @@ public class StatusReporter {
 
     private Timer timer;
     private TimerTask task;
-    private DataStoreServer dataStoreServer;
 
-    public StatusReporter(DataStoreServer dataStoreServer) {
-        this.dataStoreServer = dataStoreServer;
+    public StatusReporter(DataStoreServer dataStoreServer) throws ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
         this.timer = new Timer();
         this.task = new Reporter(dataStoreServer);
     }
@@ -21,14 +23,24 @@ public class StatusReporter {
 
     class Reporter extends TimerTask {
 
+        private AggregatorClient aggregatorClient;
         private DataStoreServer dataStoreServer;
 
-        public Reporter(DataStoreServer dataStoreServer){
+        public Reporter(DataStoreServer dataStoreServer) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
             this.dataStoreServer = dataStoreServer;
+            this.aggregatorClient = new AggregatorClient(dataStoreServer.endpointConfig.getConfigString("aggregator"));
         }
 
         public void run()
         {
+            DataStoreStatus status = new DataStoreStatus(dataStoreServer);
+            try {
+                aggregatorClient.reportDataStoreStatus(status);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             System.out.println("Do stuff for: " + this.dataStoreServer.getId());
         }
     }

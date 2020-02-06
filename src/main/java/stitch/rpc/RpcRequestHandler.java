@@ -27,6 +27,11 @@ public class RpcRequestHandler implements TransportHandler {
     }
 
     @Override
+    public void handleBroadcastRequest(RpcRequest rpcRequest) {
+        // do this
+    }
+
+    @Override
     public RpcResponse handleRequest(RpcRequest rpcRequest) {
 
         String methodName = rpcRequest.getMethod();

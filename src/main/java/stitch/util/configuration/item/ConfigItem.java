@@ -45,6 +45,10 @@ public class ConfigItem implements Serializable {
         return Class.forName(getConfigString(key));
     }
 
+    public Map<String, Object> getObjectMap(String key){
+        return (Map<String, Object>)getConfigObject(key);
+    }
+
     public long getConfigLong(String key) {
         return Long.parseLong(getConfigString(key));
     }

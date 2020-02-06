@@ -163,7 +163,7 @@ class StitchCLI implements Callable<Integer> {
             }
         }
         for(Resource resource : resourceArrayList) {
-            String uuid = resource.getUUID();
+            String uuid = resource.getID();
             String datastoreId = resource.getMetaString("datastoreId");
             String dataType = resource.getMetaString("data_type");
             int dataSize = resource.getMetaInt("data_size");
@@ -178,7 +178,7 @@ class StitchCLI implements Callable<Integer> {
 
     private void getAndPrint(String resourceId){
         Resource resource = aggregatorClient.getResource(resourceId);
-        System.out.println("UUID:      " + resource.getUUID());
+        System.out.println("UUID:      " + resource.getID());
         System.out.println("DataStoreCallable: " + resource.getMeta("datastoreId"));
         System.out.println("Type:      " + resource.getMeta("data_type"));
         System.out.println("Size:      " + resource.getMeta("data_size"));

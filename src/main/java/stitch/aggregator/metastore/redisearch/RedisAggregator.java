@@ -6,10 +6,13 @@ import org.apache.log4j.Logger;
 
 import stitch.aggregator.AggregatorServer;
 import stitch.aggregator.metastore.MetaStoreCallable;
+import stitch.datastore.DataStoreStatus;
 import stitch.resource.Resource;
+import stitch.rpc.RpcRequest;
 import stitch.util.EndpointStatus;
 import stitch.util.configuration.item.ConfigItem;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -78,13 +81,13 @@ public class RedisAggregator implements MetaStoreCallable {
     @Override
     public boolean updateResource(Resource resource) {
         try {
-            if (aggregatorServer.getDataStoreClient(getDataStoreById(resource.getUUID())).updateResource(resource)) {
-                registerResource(getDataStoreById(resource.getUUID()), resource);
+            if (aggregatorServer.getDataStoreClient(getDataStoreById(resource.getID())).updateResource(resource)) {
+                registerResource(getDataStoreById(resource.getID()), resource);
                 return true;
             }
         }catch (Exception error){
             logger.error("Encountered failure while updating resource. Resource will be removed from cache.", error);
-            redisearchClient.deleteDocument(resource.getUUID());
+            redisearchClient.deleteDocument(resource.getID());
         }
         return false;
     }
@@ -148,15 +151,15 @@ public class RedisAggregator implements MetaStoreCallable {
 
     @Override
     public void registerResource(String datastoreId, Resource resource) {
-        logger.info(String.format("Registering resource %s in datastore %s with redisearch cache", resource.getUUID(), datastoreId));
+        logger.info(String.format("Registering resource %s in datastore %s with redisearch cache", resource.getID(), datastoreId));
         Map<String, Object> resourceDocument = new HashMap<>();
-        resourceDocument.put("uuid", resource.getUUID());
+        resourceDocument.put("uuid", resource.getID());
         resourceDocument.put("datastoreId", datastoreId);
         resourceDocument.put("itemType", "resource");
         resourceDocument.putAll(resource.getMetaMap());
         logger.info(String.format("DatastoreId: %s", resourceDocument.get("datastoreId")));
         logger.info(String.format("ResourceId: %s", resourceDocument.get("uuid")));
-        redisearchClient.addDocument(resource.getUUID(), 0.5, resourceDocument, false, true, null);
+        redisearchClient.addDocument(resource.getID(), 0.5, resourceDocument, false, true, null);
     }
 
     @Override
@@ -170,5 +173,10 @@ public class RedisAggregator implements MetaStoreCallable {
     @Override
     public ArrayList<EndpointStatus> listDataStores() {
         return null;
+    }
+
+    @Override
+    public void reportDataStoreStatus(DataStoreStatus dataStoreStatus) throws IOException, InterruptedException {
+        System.out.println(dataStoreStatus.getTotalSizeMB());
     }
 }

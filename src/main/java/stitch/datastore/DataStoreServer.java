@@ -14,7 +14,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
 
-public class DataStoreServer implements Runnable {
+public abstract class DataStoreServer implements DataStoreCallable, ResourceCallable, Runnable {
 
     static final Logger logger = Logger.getLogger(DataStoreServer.class);
     protected ConfigItem endpointConfig;
@@ -36,7 +36,7 @@ public class DataStoreServer implements Runnable {
     }
 
     private void connectRpcTransport() throws IllegalAccessException, ClassNotFoundException, InstantiationException, InvocationTargetException, NoSuchMethodException {
-        rpcServer = TransportFactory.newRpcServer(endpointConfig.getConfigId(), new RpcRequestHandler(callableDataStore));
+        rpcServer = TransportFactory.newRpcServer(endpointConfig, new RpcRequestHandler(callableDataStore));
         new Thread(rpcServer).start();
     }
 

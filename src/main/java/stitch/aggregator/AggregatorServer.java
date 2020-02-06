@@ -51,7 +51,7 @@ public class AggregatorServer implements Runnable {
     }
 
     private void connectRpcTransport() throws IllegalAccessException, ClassNotFoundException, InstantiationException, InvocationTargetException, NoSuchMethodException {
-        rpcServer = TransportFactory.newRpcServer(endpointConfig.getConfigId(), new RpcRequestHandler(MetaStoreCallable.class, callableMetaStore));
+        rpcServer = TransportFactory.newRpcServer(endpointConfig, new RpcRequestHandler(MetaStoreCallable.class, callableMetaStore));
         new Thread(rpcServer).start();
     }
 
