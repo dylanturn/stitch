@@ -1,20 +1,41 @@
 package stitch.aggregator;
 
 import org.apache.log4j.Logger;
-import stitch.amqp.AMQPClient;
-import stitch.amqp.AMQPPrefix;
-import stitch.amqp.HealthReport;
-import stitch.amqp.rpc.RPCRequest;
+import stitch.aggregator.metastore.MetaStoreCallable;
+import stitch.datastore.DataStoreStatus;
+import stitch.datastore.ReplicaStatus;
+import stitch.resource.ResourceCallable;
+import stitch.resource.ResourceStatus;
+import stitch.rpc.RpcRequest;
 import stitch.resource.Resource;
+import stitch.transport.TransportCallableClient;
+import stitch.transport.TransportFactory;
+import stitch.util.EndpointStatus;
+import stitch.util.configuration.item.ConfigItem;
+import stitch.util.configuration.store.ConfigStore;
 
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.List;
 
-public class AggregatorClient extends AMQPClient implements Aggregator {
+public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
 
     static final Logger logger = Logger.getLogger(AggregatorClient.class);
 
-    public AggregatorClient(String id) throws Exception {
-        super(AMQPPrefix.AGGREGATOR, id);
+    protected ConfigItem endpointConfig;
+    protected TransportCallableClient rpcClient;
+
+    public AggregatorClient(String endpointId) throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
+        endpointConfig = ConfigStore.loadConfigStore().getConfigItemById(endpointId);
+        rpcClient = TransportFactory.newRpcClient(endpointId);
+    }
+
+    public boolean isRpcReady(){
+        return rpcClient.isReady();
+    }
+    public boolean isRpcConnected(){
+        return rpcClient.isConnected();
     }
 
     @Override
@@ -24,32 +45,32 @@ public class AggregatorClient extends AMQPClient implements Aggregator {
 
     @Override
     public boolean updateResource(Resource resource) {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "updateResource")
-                .putArg("resource", resource);
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "updateResource")
+                .putResourceArg(resource);
         try {
-            return (boolean) invokeRPC(rpcRequest).getResponseObject();
+            return (boolean) rpcClient.invokeRPC(rpcRequest).getResponseObject();
         } catch(Exception error){
-            logger.error("Failed to update the resource: " + resource.getUUID(), error);
+            logger.error("Failed to update the resource: " + resource.getID(), error);
             return false;
         }
     }
 
     @Override
     public Resource getResource(String resourceId) {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "getResource")
-                .putArg("resourceId", resourceId);
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "getResource")
+               .putStringArg(resourceId);
         try {
-            return (Resource)invokeRPC(rpcRequest).getResponseObject();
+            return (Resource) rpcClient.invokeRPC(rpcRequest).getResponseObject();
         } catch(Exception error){}
         return null;
     }
 
     @Override
     public boolean deleteResource(String resourceId) {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "deleteResource")
-                .putArg("resourceId", resourceId);
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "deleteResource")
+                .putStringArg(resourceId);
         try {
-            return (boolean) invokeRPC(rpcRequest).getResponseObject();
+            return (boolean) rpcClient.invokeRPC(rpcRequest).getResponseObject();
         } catch(Exception error){
             logger.error("Failed to delete resources!", error);
             return false;
@@ -58,10 +79,10 @@ public class AggregatorClient extends AMQPClient implements Aggregator {
 
     @Override
     public ArrayList<Resource> findResources(String filter) {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "findResources")
-                .putArg("filter", filter);
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "findResources")
+                .putStringArg(filter);
         try {
-            return (ArrayList<Resource>) invokeRPC(rpcRequest).getResponseObject();
+            return (ArrayList<Resource>) rpcClient.invokeRPC(rpcRequest).getResponseObject();
         } catch (Exception error) {
             logger.error("Failed to find resources!", error);
             return null;
@@ -70,9 +91,9 @@ public class AggregatorClient extends AMQPClient implements Aggregator {
 
     @Override
     public ArrayList<Resource> listResources() {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "listResources");
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "listResources");
         try {
-            return (ArrayList<Resource>)invokeRPC(rpcRequest).getResponseObject();
+            return (ArrayList<Resource>) rpcClient.invokeRPC(rpcRequest).getResponseObject();
         } catch(Exception error){
             logger.error("Failed to list resources!", error);
             return null;
@@ -80,38 +101,34 @@ public class AggregatorClient extends AMQPClient implements Aggregator {
     }
 
     @Override
-    public ArrayList<HealthReport> listDataStores() {
-        try {
-            RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "listDataStores");
-            return (ArrayList<HealthReport>)invokeRPC(rpcRequest).getResponseObject();
-        } catch(Exception error){
-            logger.error("Failed to list resources!", error);
-            return null;
-        }
+    public String getDataStoreById(String resourceId) {
+        return null;
     }
 
     @Override
-    public void registerResource(String datastoreId, Resource resource) {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "registerResource")
-                .putArg("datastoreId", datastoreId)
-                .putArg("resource", resource);
-        try {
-            logger.info(String.format("Registering resource: %s", resource.getUUID()));
-            logger.info(String.format("Datastore Id:         %s", datastoreId));
-            logger.info(String.format("Route Key:            %s", getRouteKey()));
-            invokeRPC(rpcRequest);
-        } catch(Exception error){
-            logger.error("Failed to register resource!", error);
-        }
+    public ArrayList<EndpointStatus> listDataStores() {
+        return null;
     }
 
     @Override
-    public void run() {
-        logger.info("Started Aggregator Client...");
+    public void reportDataStoreStatus(DataStoreStatus dataStoreStatus) throws IOException, InterruptedException {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "reportDataStoreStatus")
+                .putArg(DataStoreStatus.class, dataStoreStatus);
+        rpcClient.broadcastRPC(rpcRequest);
     }
 
     @Override
-    public void shutdown() {
-        logger.info("Shutting down aggregator client...");
+    public void registerResourceReplica(String datastoreId, ResourceStatus resourceStatus) {
+
+    }
+
+    @Override
+    public void unregisterResourceReplica(String datastoerId, String resourceId) {
+
+    }
+
+    @Override
+    public void updateResourceReplica(String datastoreId, ResourceStatus resourceStatus, ReplicaStatus replicaStatus) {
+
     }
 }

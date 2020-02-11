@@ -12,36 +12,60 @@ public class Resource implements Serializable {
 
     private static final long serialVersionUID = 1234L;
 
-    private String uuid;
+    private String id;
     private Map<String, Object> metaMap = new HashMap<>();
     private byte[] data;
 
     public Resource(String dataType, byte[] dataBytes){
-        this.uuid = UUID.randomUUID().toString().replace("-", "");
-        this.metaMap.put("created", Instant.now().toEpochMilli());
-        this.metaMap.put("data_type", dataType);
-        this.metaMap.put("data_size", dataBytes.length);
+        this.id = UUID.randomUUID().toString().replace("-", "");
+        putMeta("created", Instant.now().toEpochMilli());
+        putMeta("data_type", dataType);
+        putMeta("data_size", dataBytes.length);
         this.data = dataBytes;
     }
 
-    public Resource(String uuid, HashMap<String, Object> metaMap, byte[] dataBytes) {
-        this.uuid = uuid;
+    public Resource(String id, HashMap<String, Object> metaMap, byte[] dataBytes) {
+        this.id = id;
         this.metaMap = metaMap;
         this.data = dataBytes;
     }
 
-    public String getUUID(){ return this.uuid; }
+    private void incrementEpoch(){
+        long currentEpoch = getEpoch();
+        currentEpoch++;
+        this.metaMap.replace("epoch", currentEpoch);
+        this.metaMap.replace("mtime", Instant.now().toEpochMilli());
+    }
 
-    public byte[] getData(){ return this.data; }
+    public void putMeta(String metaKey, Object metaData){
+        incrementEpoch();
+        this.metaMap.put(metaKey, metaData);
+    }
+
     public void setData(byte[] dataBytes) {
+        incrementEpoch();
         this.metaMap.replace("created", Instant.now().toEpochMilli());
         this.metaMap.replace("data_size", dataBytes.length);
         this.data = dataBytes;
     }
 
-    public void putMeta(String metaKey, Object metaData){
-        this.metaMap.put(metaKey, metaData);
+    public String getID(){ return this.id; }
+    public long getCreated(){ return this.getMetaLong("created"); }
+    public long getEpoch() { return getMetaLong("epoch"); }
+    public long getMtime() { return getMetaLong("mtime"); }
+    public ResourceStatus getStatus(){
+        return new ResourceStatus(id)
+                .setCreated(getCreated())
+                .setDataType(getDataType())
+                .setDataSize(getDataSize())
+                .setEpoch(getEpoch())
+                .setMtime(getMtime());
     }
+
+    public String getDataType() { return this.getMetaString("data_type"); }
+    public long getDataSize() { return this.getMetaLong("data_size"); }
+    public long getLogicalSizeMB() { return getDataSize(); }
+    public byte[] getData(){ return this.data; }
     public Object getMeta(String metaKey){
         return this.metaMap.get(metaKey);
     }
@@ -54,7 +78,6 @@ public class Resource implements Serializable {
     public long getMetaLong(String metaKey){
         return Long.parseLong(getMetaString(metaKey));
     }
-
     public Map<String, Object> getMetaMap(){
         return this.metaMap;
     }

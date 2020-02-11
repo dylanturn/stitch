@@ -9,9 +9,8 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import stitch.aggregator.AggregatorClient;
-import stitch.amqp.HealthReport;
-import stitch.amqp.AMQPStats;
 import stitch.resource.Resource;
+import stitch.util.EndpointStatus;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -52,6 +51,7 @@ class StitchCLI implements Callable<Integer> {
 
     public static void main(String... args) {
         ((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger("org.mongodb.driver").setLevel(Level.ERROR);
+        ((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger("stitch").setLevel(Level.TRACE);
         int exitCode = new CommandLine(new StitchCLI()).execute(args);
         System.exit(exitCode);
     }
@@ -61,12 +61,12 @@ class StitchCLI implements Callable<Integer> {
 
         logger.trace("Loading Application Properties...");
         Properties properties = new Properties();
-        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("~/.stitch.properties");
+        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("~/.stitch.configuration");
         if (inputStream != null) {
             try {
                 properties.load(inputStream);
             } catch (IOException e) {
-                logger.error("Failed to load application properties input stream", e);
+                logger.error("Failed to load application configuration input stream", e);
                 e.printStackTrace();
                 System.exit(100);
             }
@@ -77,7 +77,10 @@ class StitchCLI implements Callable<Integer> {
                 aggregatorId = properties.getProperty("aggregator");
             }
 
+            logger.trace("Connecting to aggregator: " + aggregatorId);
+            // TODO: Fix this
             aggregatorClient = new AggregatorClient(aggregatorId);
+
 
             switch (action) {
                 case "list":
@@ -98,10 +101,6 @@ class StitchCLI implements Callable<Integer> {
                     getAndPrint(resourceId);
                     break;
 
-                case "stats":
-                    statsAndPrint();
-                    break;
-
                 case "new":
                     createResource(resourceType, resourceData);
                     break;
@@ -118,48 +117,30 @@ class StitchCLI implements Callable<Integer> {
         return 0;
     }
 
-    private void statsAndPrint(){
-        System.out.println("STATS?!");
-        AMQPStats amqpStats = aggregatorClient.getAmqpStats();
-        System.out.println("Total Calls:   " + amqpStats.getTotalCalls());
-        System.out.println("Success Calls: " + amqpStats.getTotalCalls());
-        System.out.println("Failed Calls:  " + amqpStats.getTotalCalls());
-    }
-
     /*
 
     DATASTORES
 
      */
 
-    private void listAndPrintDataStores(){
+    private void listAndPrintDataStores() throws ClassNotFoundException {
         logger.trace("Execute list and print.");
-        ArrayList<HealthReport> dataStoreHealthReports = aggregatorClient.listDataStores();
-        printDataStoreTable(dataStoreHealthReports);
+        logger.trace("Is the RPC Client Connected: " + aggregatorClient.isRpcConnected());
+        logger.trace("Is the RPC Client Ready: " + aggregatorClient.isRpcReady());
+        printDataStoreTable(aggregatorClient.listDataStores());
     }
 
-    private void printDataStoreTable(ArrayList<HealthReport> dataStoreHealthReports){
-        for(HealthReport healthReport : dataStoreHealthReports){
-            System.out.println(healthReport);
-        }
+    private void printDataStoreTable(ArrayList<EndpointStatus> endpointStatuses) throws ClassNotFoundException {
+        logger.trace("dataStoreHealthReports");
         if(!quiet) {
-            System.out.println("DataStore Count: " + dataStoreHealthReports.size());
-            if(dataStoreHealthReports.size() > 0) {
-                String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-20s |", "Aggregator ID", "DataStore ID", "Type", "Class", "Uptime");
+            System.out.println("DataStoreCallable Count: " + endpointStatuses.size());
+            if(endpointStatuses.size() > 0) {
+                String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-10s | %-25s | %-10s |", "AggregatorCallable ID", "DataStoreCallable ID", "Resource Count", "Used", "Total", "Class", "Uptime");
                 System.out.println(tableHeader);
             }
         }
-        for(HealthReport healthReport : dataStoreHealthReports) {
-            String storeId = healthReport.getNodeId();
-            long storeUptime = healthReport.getNodeUptime();
-            String storeType = (String)healthReport.getExtra().get("type");
-            String storeClass = (String)healthReport.getExtra().get("class");
-            String tableBody = storeId;
-            if(!quiet) {
-                tableBody = String.format("| %36s | %36s | %10s | %10s | %20s |", aggregatorId, storeId, storeType, storeClass, storeUptime);
-            }
-            System.out.println(tableBody);
-        }
+
+
     }
 
     /*
@@ -169,7 +150,6 @@ class StitchCLI implements Callable<Integer> {
      */
 
     private void listAndPrint(){
-        logger.trace("Execute list and print.");
         ArrayList<Resource> resourceArrayList = aggregatorClient.listResources();
         printResourceTable(resourceArrayList);
     }
@@ -178,12 +158,12 @@ class StitchCLI implements Callable<Integer> {
         if(!quiet) {
             System.out.println("Resource Count: " + resourceArrayList.size());
             if(resourceArrayList.size() > 0) {
-                String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-20s |", "Resource ID", "DataStore ID", "Type", "Size", "Timestamp");
+                String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-20s |", "Resource ID", "DataStoreCallable ID", "Type", "Size", "Timestamp");
                 System.out.println(tableHeader);
             }
         }
         for(Resource resource : resourceArrayList) {
-            String uuid = resource.getUUID();
+            String uuid = resource.getID();
             String datastoreId = resource.getMetaString("datastoreId");
             String dataType = resource.getMetaString("data_type");
             int dataSize = resource.getMetaInt("data_size");
@@ -198,8 +178,8 @@ class StitchCLI implements Callable<Integer> {
 
     private void getAndPrint(String resourceId){
         Resource resource = aggregatorClient.getResource(resourceId);
-        System.out.println("UUID:      " + resource.getUUID());
-        System.out.println("DataStore: " + resource.getMeta("datastoreId"));
+        System.out.println("UUID:      " + resource.getID());
+        System.out.println("DataStoreCallable: " + resource.getMeta("datastoreId"));
         System.out.println("Type:      " + resource.getMeta("data_type"));
         System.out.println("Size:      " + resource.getMeta("data_size"));
         System.out.println("Timestamp: " + resource.getMeta("created"));
