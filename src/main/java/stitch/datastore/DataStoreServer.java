@@ -21,7 +21,10 @@ public abstract class DataStoreServer implements DataStoreCallable, ResourceCall
     protected TransportCallableServer rpcServer;
     private StatusReporter statusReporter;
     private long startTime;
+    protected long usedQuota;
+    protected long hardQuota;
     private DataStoreCallable callableDataStore;
+
 
     public DataStoreServer(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException, InvocationTargetException, NoSuchMethodException {
         this.endpointConfig = endpointConfig;
@@ -46,6 +49,19 @@ public abstract class DataStoreServer implements DataStoreCallable, ResourceCall
     public long getStartTime(){
         return this.startTime;
     }
+
+    public String getPerformanceTier(){
+        return endpointConfig.getConfigString("performance_tier");
+    }
+
+    public long getUsedQuota() {
+        return usedQuota;
+    }
+
+    public long getHardQuota() {
+        return hardQuota;
+    }
+
     public TransportCallableServer getRpcServer(){
         return rpcServer;
     }

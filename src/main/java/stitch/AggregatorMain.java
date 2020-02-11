@@ -23,6 +23,7 @@ public class AggregatorMain {
     public static void main(String[] args) throws Exception {
 
         ((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger("org.mongodb.driver").setLevel(Level.ERROR);
+
         ConfigStore configStore = ConfigStore.loadConfigStore();
 
         // Get the id of the DataStoreCallable we'd like to start.

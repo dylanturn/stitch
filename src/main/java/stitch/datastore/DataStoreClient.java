@@ -21,8 +21,12 @@ public class DataStoreClient implements DataStoreCallable, ResourceCallable {
     protected TransportCallableClient rpcClient;
 
     public DataStoreClient(String endpointId) throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException {
-        endpointConfig = ConfigStore.loadConfigStore().getConfigItemById(endpointId);
-        rpcClient = TransportFactory.newRpcClient(endpointId);
+        this(ConfigStore.loadConfigStore().getConfigItemById(endpointId));
+    }
+
+    public DataStoreClient(ConfigItem endpointConfig) throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException {
+        this.endpointConfig = endpointConfig;
+        rpcClient = TransportFactory.newRpcClient(endpointConfig.getConfigId());
     }
 
     @Override
@@ -55,13 +59,7 @@ public class DataStoreClient implements DataStoreCallable, ResourceCallable {
 
     @Override
     public ArrayList<Resource> listResources() {
-        return this.listResources(true);
-    }
-
-    @Override
-    public ArrayList<Resource> listResources(boolean includeData) {
-        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "listResources")
-                .putBoolArg(includeData);
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "listResources");
         try{
             return (ArrayList<Resource>)rpcClient.invokeRPC(rpcRequest).getResponseObject();
 

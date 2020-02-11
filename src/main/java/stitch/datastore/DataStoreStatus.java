@@ -1,49 +1,44 @@
 package stitch.datastore;
 
+import stitch.resource.Resource;
 import stitch.resource.ResourceStatus;
 import stitch.util.EndpointStatus;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class DataStoreStatus extends EndpointStatus {
 
-    private List<ResourceStatus> resourceStatusList;
-    private long logicalSizeMB;
-    private long totalSizeMB;
+    private String performanceTier;
+    private long usedQuota = -1;
+    private long hardQuota = -1;
+    private List<ResourceStatus> resourceStatusList = new ArrayList<>();
 
     public DataStoreStatus(DataStoreServer server) {
         super(server.getId(), server.getStartTime());
+        performanceTier = server.getPerformanceTier();
+        usedQuota = server.getUsedQuota();
+        hardQuota = server.getHardQuota();
+        for(Resource resource : server.listResources()){
+            resourceStatusList.add(resource.getStatus());
+        }
     }
 
-    public List<ResourceStatus> getResourceStatusList(){
-        return resourceStatusList;
+    public String getPerformanceTier() { return performanceTier; }
+    public long getUsedQuota() {
+        return usedQuota;
+    }
+    public long getHardQuota() {
+        return hardQuota;
+    }
+    public long getResourceCount() { return resourceStatusList.size(); }
+    public ResourceStatus[] getResourceStatuses(){
+        return resourceStatusList.toArray(new ResourceStatus[0]);
     }
 
-    public long getLogicalSizeMB() {
-        return logicalSizeMB;
-    }
-
-    public long getTotalSizeMB() {
-        return totalSizeMB;
-    }
-
-    public DataStoreStatus setResourceStatusList(List<ResourceStatus> resourceStatusList){
-        this.resourceStatusList = resourceStatusList;
-        return this;
-    }
-
-    public DataStoreStatus addResourceStatus(ResourceStatus resourceStatus) {
-        this.resourceStatusList.add(resourceStatus);
-        return this;
-    }
-
-    public DataStoreStatus setLogicalSizeMB(long logicalSizeMB){
-        this.logicalSizeMB = logicalSizeMB;
-        return this;
-    }
-
-    public DataStoreStatus setTotalSizeMB(long totalSizeMB){
-        this.totalSizeMB = totalSizeMB;
-        return this;
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.getClass(), getPerformanceTier(), getUsedQuota(), getHardQuota(), getResourceCount());
     }
 }

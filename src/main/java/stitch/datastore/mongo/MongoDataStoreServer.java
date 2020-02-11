@@ -137,21 +137,12 @@ public class MongoDataStoreServer extends DataStoreServer {
 
     @Override
     public ArrayList<Resource> listResources() {
-        return this.listResources(true);
-    }
-
-    @Override
-    public ArrayList<Resource> listResources(boolean includeData) {
         logger.trace("Listing Resources");
         ArrayList<Resource> resourceList = new ArrayList<>();
         FindIterable<Document> foundDocuments;
-        if(includeData){
-            foundDocuments = mongoCollection.find();
-        } else {
-            foundDocuments = mongoCollection.find().projection(fields(include("uuid", "meta")));
-        }
+        foundDocuments = mongoCollection.find().projection(fields(include("uuid", "meta")));
         for(Document document : foundDocuments){
-            resourceList.add(toResource(document, includeData));
+            resourceList.add(toResource(document, false));
         }
         return resourceList;
     }
@@ -161,5 +152,6 @@ public class MongoDataStoreServer extends DataStoreServer {
     public ArrayList<Resource> findResources(String filter) {
         return listResources();
     }
+
 
 }

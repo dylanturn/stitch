@@ -8,6 +8,5 @@ public interface ResourceCallable {
     Resource getResource(String resourceId) throws Exception;
     boolean deleteResource(String resourceId) throws Exception;
     List<Resource> listResources();
-    List<Resource> listResources(boolean includeData);
     List<Resource> findResources(String filter);
 }

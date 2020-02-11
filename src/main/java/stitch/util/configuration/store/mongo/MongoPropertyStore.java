@@ -46,7 +46,6 @@ public class MongoPropertyStore extends ConfigStore {
         String endpoint = readProperty("endpoint");
         String options = readProperty("options");
         String queryString = String.format("%s://%s:%s@%s/%s?%s", protocol, username, password, endpoint, this.mongoAdminDB, options);
-        logger.trace("Connecting using: " + queryString);
         return queryString;
     }
 

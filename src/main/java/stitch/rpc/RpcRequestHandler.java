@@ -73,6 +73,23 @@ public class RpcRequestHandler implements TransportHandler {
             return rpcRequest.createResponse()
                     .setStatusCode(RpcStatusCode.NET_READ_ERROR)
                     .setStatusMessage(error.getMessage());
+        } finally {
+            // Gross, i know.
+            StringBuilder traceBuilder = new StringBuilder();
+            traceBuilder
+                    .append("RPC INFO").append("\n")
+                    .append("RPC Method:            " + rpcRequest.getMethod()).append("\n")
+                    .append("RPC Source:            " + rpcRequest.getSource()).append("\n")
+                    .append("RPC Destination:       " + rpcRequest.getDestination()).append("\n")
+                    .append("RPC CLASSES").append("\n");
+            for(Class rpcClass : rpcRequest.getArgClasses()){
+                traceBuilder.append(" - RPC Class Name: " + rpcClass.getName()).append("\n");
+            }
+            traceBuilder.append("RPC CLASS ARGS").append("\n");
+            for(Object rpcObject : rpcRequest.getArgValues()){
+                traceBuilder.append(" - RPC Class Arg: " + rpcObject.getClass().getName()).append("\n");
+            }
+            logger.trace(traceBuilder.toString());
         }
     }
 }

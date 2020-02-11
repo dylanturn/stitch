@@ -18,7 +18,7 @@ public class Serializer {
         }
     }
 
-    public static Object  bytesToObject(byte[] objBytes) throws IOException, ClassNotFoundException {
+    public static Object bytesToObject(byte[] objBytes) throws IOException, ClassNotFoundException {
         try (ByteArrayInputStream bis = new ByteArrayInputStream(objBytes);
              ObjectInputStream ois = new ObjectInputStream(bis)){
             return ois.readObject();

@@ -46,7 +46,7 @@ public class AggregatorServer implements Runnable {
         filters.put("aggregator", endpointConfig.getConfigId());
 
         for(ConfigItem dataStoreConfig : configStore.getConfigItemsByAttributes(filters)){
-            dataStoreClients.put(dataStoreConfig.getConfigId(), new DataStoreClient(dataStoreConfig.getConfigId()));
+            dataStoreClients.put(dataStoreConfig.getConfigId(), new DataStoreClient(dataStoreConfig ));
         }
     }
 
@@ -63,14 +63,14 @@ public class AggregatorServer implements Runnable {
         return endpointConfig;
     }
 
-    private void registerResources(){
+    /*private void registerResources(){
         for(Map.Entry<String, DataStoreClient> dataStoreClient : dataStoreClients.entrySet()){
             ArrayList<Resource> resourceArray = dataStoreClient.getValue().listResources();
             for(Resource resource : resourceArray) {
                 callableMetaStore.registerResource(dataStoreClient.getKey(), resource);
             }
         }
-    }
+    }*/
 
     @Override
     public void run() {
@@ -89,8 +89,8 @@ public class AggregatorServer implements Runnable {
             connectRpcTransport();
 
             // Request a list of resources from all the DataStores and put them in the cache.
-            logger.trace("Registering resources");
-            this.registerResources();
+            // logger.trace("Registering resources");
+            // this.registerResources();
 
         } catch (IllegalAccessException e) {
             e.printStackTrace();

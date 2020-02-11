@@ -41,7 +41,6 @@ public class StatusReporter {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            System.out.println("Do stuff for: " + this.dataStoreServer.getId());
         }
     }
 

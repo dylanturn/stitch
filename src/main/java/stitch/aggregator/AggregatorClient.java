@@ -3,7 +3,9 @@ package stitch.aggregator;
 import org.apache.log4j.Logger;
 import stitch.aggregator.metastore.MetaStoreCallable;
 import stitch.datastore.DataStoreStatus;
+import stitch.datastore.ReplicaStatus;
 import stitch.resource.ResourceCallable;
+import stitch.resource.ResourceStatus;
 import stitch.rpc.RpcRequest;
 import stitch.resource.Resource;
 import stitch.transport.TransportCallableClient;
@@ -98,12 +100,6 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
         }
     }
 
-    // TODO: This should work the way it implies.
-    @Override
-    public List<Resource> listResources(boolean includeData) {
-        return listResources();
-    }
-
     @Override
     public String getDataStoreById(String resourceId) {
         return null;
@@ -115,24 +111,24 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
     }
 
     @Override
-    public void registerResource(String datastoreId, Resource resource) {
-        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "registerResource")
-                .putStringArg(datastoreId)
-                .putResourceArg(resource);
-        try {
-            logger.info(String.format("Registering resource: %s", resource.getID()));
-            logger.info(String.format("Datastore Id:         %s", datastoreId));
-            logger.info(String.format("Route Key:            %s", rpcClient.getRpcAddress()));
-            rpcClient.invokeRPC(rpcRequest);
-        } catch(Exception error){
-            logger.error("Failed to register resource!", error);
-        }
-    }
-
-    @Override
     public void reportDataStoreStatus(DataStoreStatus dataStoreStatus) throws IOException, InterruptedException {
         RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "reportDataStoreStatus")
                 .putArg(DataStoreStatus.class, dataStoreStatus);
         rpcClient.broadcastRPC(rpcRequest);
+    }
+
+    @Override
+    public void registerResourceReplica(String datastoreId, ResourceStatus resourceStatus) {
+
+    }
+
+    @Override
+    public void unregisterResourceReplica(String datastoerId, String resourceId) {
+
+    }
+
+    @Override
+    public void updateResourceReplica(String datastoreId, ResourceStatus resourceStatus, ReplicaStatus replicaStatus) {
+
     }
 }

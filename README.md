@@ -5,10 +5,11 @@
 2/5/2020 - (AMQP) The broadcast exchange had both datastores AND aggregators bound to it - I went ahead and modified the AMQP exchange setup. There are now two exchanges per endpoint type: ```stitch.aggregator.direct``` and ```stitch.aggregator.broadcast```.
 
 ## TODO:
-1. The Aggregator needs a fanout queue. DataStore servers will create transport clients and send updated implementations of EndpointRecord.
-2. Aggregator metastores need to keep track of the Endpoint records tha the datastores are sending in.
-3. Maybe some way to track resource availability by the state of the host datastore?
-4. Also need to think about eventually implementing the ability to have resource replicas. 
+1. Aggregator metastores need to keep track of the Endpoint records tha the datastores are sending in.
+2. Maybe some way to track resource availability by the state of the host datastore?
+3. Also need to think about eventually implementing the ability to have resource replicas.
+4. Aggregators should probably allow you to create resource schemas.
+5. Track resource metadata cardinality across a schema.
 
 
     Resource ID - The Id of the resource
@@ -19,7 +20,8 @@
     InactiveServers - The id of datastores that host the container but are in maintenance mode.
     UnusedServers - The id of datastores from which no "heartbeat" has been received for quite some time.
     LogicalSizeMB - The logical size on disk of the resource
-
+    
+    
 ## Getting Started
 ```bash
 # Starting the DataStore services
