@@ -2,6 +2,7 @@ package stitch.aggregator;
 
 import org.apache.log4j.Logger;
 import stitch.aggregator.metastore.MetaStoreCallable;
+import stitch.datastore.DataStoreInfo;
 import stitch.datastore.DataStoreStatus;
 import stitch.datastore.ReplicaStatus;
 import stitch.resource.ResourceCallable;
@@ -61,7 +62,9 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
                .putStringArg(resourceId);
         try {
             return (Resource) rpcClient.invokeRPC(rpcRequest).getResponseObject();
-        } catch(Exception error){}
+        } catch(Exception error){
+            logger.error("Failed to get resource!", error);
+        }
         return null;
     }
 
@@ -100,14 +103,34 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
         }
     }
 
+
     @Override
-    public String getDataStoreById(String resourceId) {
-        return null;
+    public DataStoreInfo getDatastore(String dataStoreId) {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "listDataStores")
+                .putArg(String.class, dataStoreId);
+        try {
+            return (DataStoreInfo) rpcClient.invokeRPC(rpcRequest).getResponseObject();
+        } catch(Exception error) {
+            logger.error("Failed to list datastores!", error);
+            return null;
+        }
+    }
+
+    // We should shy away from returning array lists. Lets return an object array.
+    @Override
+    public ArrayList<DataStoreInfo> listDataStores() {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "listDataStores");
+        try {
+            return (ArrayList<DataStoreInfo>) rpcClient.invokeRPC(rpcRequest).getResponseObject();
+        } catch(Exception error){
+            logger.error("Failed to list datastores!", error);
+            return null;
+        }
     }
 
     @Override
-    public ArrayList<EndpointStatus> listDataStores() {
-        return null;
+    public DataStoreInfo[] findDataStores() {
+        return listDataStores().toArray(new DataStoreInfo[0]);
     }
 
     @Override
@@ -115,20 +138,5 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
         RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "reportDataStoreStatus")
                 .putArg(DataStoreStatus.class, dataStoreStatus);
         rpcClient.broadcastRPC(rpcRequest);
-    }
-
-    @Override
-    public void registerResourceReplica(String datastoreId, ResourceStatus resourceStatus) {
-
-    }
-
-    @Override
-    public void unregisterResourceReplica(String datastoerId, String resourceId) {
-
-    }
-
-    @Override
-    public void updateResourceReplica(String datastoreId, ResourceStatus resourceStatus, ReplicaStatus replicaStatus) {
-
     }
 }

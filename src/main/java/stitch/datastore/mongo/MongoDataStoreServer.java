@@ -1,9 +1,8 @@
 package stitch.datastore.mongo;
 
 import com.mongodb.*;
-import com.mongodb.client.FindIterable;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.MongoClient;
+import com.mongodb.client.*;
 import org.apache.log4j.Logger;
 import org.bson.Document;
 import org.bson.types.Binary;
@@ -13,6 +12,7 @@ import stitch.util.configuration.item.ConfigItem;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 import static com.mongodb.client.model.Projections.fields;
 import static com.mongodb.client.model.Projections.include;
@@ -153,5 +153,17 @@ public class MongoDataStoreServer extends DataStoreServer {
         return listResources();
     }
 
+
+    @Override
+    public boolean isDataStoreReady() {
+        ListCollectionsIterable<Document> mongoCollectionlist = mongoDatabase.listCollections()
+                .maxTime(60, TimeUnit.SECONDS);
+
+        // Here we're checking to make sure we return something. If we do then we know the connection is good.
+        for(Document document : mongoCollectionlist){
+            return true;
+        }
+        return false;
+    }
 
 }

@@ -63,15 +63,6 @@ public class AggregatorServer implements Runnable {
         return endpointConfig;
     }
 
-    /*private void registerResources(){
-        for(Map.Entry<String, DataStoreClient> dataStoreClient : dataStoreClients.entrySet()){
-            ArrayList<Resource> resourceArray = dataStoreClient.getValue().listResources();
-            for(Resource resource : resourceArray) {
-                callableMetaStore.registerResource(dataStoreClient.getKey(), resource);
-            }
-        }
-    }*/
-
     @Override
     public void run() {
         try {

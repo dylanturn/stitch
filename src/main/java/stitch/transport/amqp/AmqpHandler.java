@@ -6,6 +6,8 @@ import stitch.rpc.RpcRequest;
 import stitch.rpc.RpcResponse;
 import stitch.rpc.RpcRequestHandler;
 import stitch.transport.TransportHandler;
+import stitch.util.configuration.item.ConfigItem;
+import stitch.util.configuration.item.ConfigItemType;
 
 import java.io.IOException;
 
@@ -49,7 +51,8 @@ public class AmqpHandler implements DeliverCallback {
         if(delivery.getProperties().getReplyTo() != null){
             // Publish the reply to the caller and ack the message.
             logger.trace("Responding to: " + delivery.getProperties().getReplyTo());
-            channel.basicPublish(exchange, delivery.getProperties().getReplyTo(), replyProps, rpcResponseBytes);
+            // We dont publish to an exchange because reply queues dont consume on them.
+            channel.basicPublish("", delivery.getProperties().getReplyTo(), replyProps, rpcResponseBytes);
         }
 
         channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);

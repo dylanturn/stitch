@@ -2,17 +2,16 @@ package stitch.datastore;
 
 
 import org.apache.log4j.Logger;
-import stitch.aggregator.AggregatorServer;
 import stitch.resource.ResourceCallable;
 import stitch.transport.TransportCallableServer;
 import stitch.rpc.RpcRequestHandler;
 import stitch.transport.TransportFactory;
 import stitch.util.configuration.item.ConfigItem;
-import sun.security.krb5.Config;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
+import static spark.Spark.*;
 
 public abstract class DataStoreServer implements DataStoreCallable, ResourceCallable, Runnable {
 
@@ -24,7 +23,7 @@ public abstract class DataStoreServer implements DataStoreCallable, ResourceCall
     protected long usedQuota;
     protected long hardQuota;
     private DataStoreCallable callableDataStore;
-
+    private int reportInterval = 5000;
 
     public DataStoreServer(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException, InvocationTargetException, NoSuchMethodException {
         this.endpointConfig = endpointConfig;
@@ -67,6 +66,25 @@ public abstract class DataStoreServer implements DataStoreCallable, ResourceCall
     }
 
     @Override
+    public boolean isDataStoreAlive() {
+
+        // TODO: Need to implement better livelyness checks.
+
+        long lastReportTime = statusReporter.getLastReportRun();
+
+        // Figure out how much time has passed since the last report.
+        long reportTimeDelta = Instant.now().toEpochMilli() - lastReportTime;
+
+        // Make sure the status reporter is running by making sure the time since last run is less than two intervals.
+        if(reportTimeDelta < (reportInterval*2)){
+            return true;
+        } else {
+            return false;
+        }
+
+    }
+
+    @Override
     public void run() {
 
         // Once the DataStoreServer has connected to the backend we can start the RPC transport.
@@ -81,7 +99,7 @@ public abstract class DataStoreServer implements DataStoreCallable, ResourceCall
             connectRpcTransport();
 
             logger.trace("Start the status reporter");
-            this.statusReporter.schedule(2000,5000);
+            this.statusReporter.schedule(reportInterval/2,reportInterval);
 
         } catch (IllegalAccessException e) {
             e.printStackTrace();

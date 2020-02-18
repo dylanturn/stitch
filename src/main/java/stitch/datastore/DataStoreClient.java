@@ -74,4 +74,26 @@ public class DataStoreClient implements DataStoreCallable, ResourceCallable {
     public ArrayList<Resource> findResources(String filter) {
         return listResources();
     }
+
+    @Override
+    public boolean isDataStoreReady() {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "isDataStoreReady");
+        try {
+            return (boolean) rpcClient.invokeRPC(rpcRequest).getResponseObject();
+        } catch(Exception error) {
+            logger.error("Failed to check if datastore is ready!", error);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean isDataStoreAlive() {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "isDataStoreAlive");
+        try {
+            return (boolean) rpcClient.invokeRPC(rpcRequest).getResponseObject();
+        } catch(Exception error) {
+            logger.error("Failed to check if datastore is alive!", error);
+            return false;
+        }
+    }
 }

@@ -9,6 +9,8 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import stitch.aggregator.AggregatorClient;
+import stitch.datastore.DataStoreInfo;
+import stitch.datastore.DataStoreStatus;
 import stitch.resource.Resource;
 import stitch.util.EndpointStatus;
 
@@ -130,16 +132,24 @@ class StitchCLI implements Callable<Integer> {
         printDataStoreTable(aggregatorClient.listDataStores());
     }
 
-    private void printDataStoreTable(ArrayList<EndpointStatus> endpointStatuses) throws ClassNotFoundException {
+    private void printDataStoreTable(ArrayList<DataStoreInfo> dataStoreInfos) throws ClassNotFoundException {
         logger.trace("dataStoreHealthReports");
         if(!quiet) {
-            System.out.println("DataStoreCallable Count: " + endpointStatuses.size());
-            if(endpointStatuses.size() > 0) {
+            System.out.println("DataStoreCallable Count: " + dataStoreInfos.size());
+            if(dataStoreInfos.size() > 0) {
                 String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-10s | %-25s | %-10s |", "AggregatorCallable ID", "DataStoreCallable ID", "Resource Count", "Used", "Total", "Class", "Uptime");
                 System.out.println(tableHeader);
             }
         }
-
+        for(DataStoreInfo dataStoreInfo : dataStoreInfos) {
+            System.out.println("====== DataStore ======");
+            System.out.println(dataStoreInfo.getId());
+            System.out.println(dataStoreInfo.getPerformanceTier());
+            System.out.println(dataStoreInfo.getResourceCount());
+            System.out.println(dataStoreInfo.getUsedQuota());
+            System.out.println(dataStoreInfo.getHardQuota());
+            System.out.println("=======================");
+        }
 
     }
 
@@ -158,13 +168,13 @@ class StitchCLI implements Callable<Integer> {
         if(!quiet) {
             System.out.println("Resource Count: " + resourceArrayList.size());
             if(resourceArrayList.size() > 0) {
-                String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-20s |", "Resource ID", "DataStoreCallable ID", "Type", "Size", "Timestamp");
+                String tableHeader = String.format("| %-36s | %-36s | %-10s | %-10s | %-20s |", "Resource ID", "Master Store ID", "Type", "Size", "Timestamp");
                 System.out.println(tableHeader);
             }
         }
         for(Resource resource : resourceArrayList) {
             String uuid = resource.getID();
-            String datastoreId = resource.getMetaString("datastoreId");
+            String datastoreId = resource.getMetaString("master_store");
             String dataType = resource.getMetaString("data_type");
             int dataSize = resource.getMetaInt("data_size");
             long created = resource.getMetaLong("created");

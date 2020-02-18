@@ -1,5 +1,7 @@
 package stitch.resource;
 
+import com.google.gson.Gson;
+import stitch.datastore.DataStoreInfo;
 import stitch.util.Serializer;
 
 import java.io.*;
@@ -88,5 +90,15 @@ public class Resource implements Serializable {
 
     public static byte[] toByteArray(Resource resource) throws IOException {
         return Serializer.objectToBytes(resource);
+    }
+
+    public static String toJson(Resource resource){
+        Gson gson = new Gson();
+        return gson.toJson(resource);
+    }
+
+    public static Resource fromJson(String resourceJson){
+        Gson gson = new Gson();
+        return gson.fromJson(resourceJson, Resource.class);
     }
 }

@@ -117,4 +117,9 @@ public class FileDataStoreServer extends DataStoreServer {
     public List<Resource> findResources(String filter) {
         return listResources();
     }
+
+    @Override
+    public boolean isDataStoreReady() {
+        return false;
+    }
 }
