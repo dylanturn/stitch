@@ -1,5 +1,6 @@
 package stitch.aggregator.metastore.redisearch;
 
+import com.mongodb.QueryBuilder;
 import io.redisearch.*;
 import io.redisearch.aggregation.AggregationBuilder;
 import io.redisearch.aggregation.AggregationRequest;
@@ -219,7 +220,9 @@ public class MetaCacheManager {
     }
 
     protected DataStoreInfo getDataStoreInfo(String datastoreId){
-        SearchResult searchResult = datastoreSchemaClient.search(new Query("*"));
+        // FT.SEARCH datastore_meta "@datastore_id:333cf31f81784a8b93d2ae975de9a00a"
+        String searchQuery = String.format("@datastore_id:%s", datastoreId);
+        SearchResult searchResult = datastoreSchemaClient.search(new Query(searchQuery));
         for(Document document : searchResult.docs){
             if(datastoreId.equals(document.getString("datastore_id"))){
                 return new DataStoreInfo(document.getString("datastore_id"))
@@ -268,7 +271,7 @@ public class MetaCacheManager {
         aggregationBuilder
                 .load("@datastore_id", "@hard_quota", "@used_quota", "@performance_tier", "@instance_class", "@resource_count")
                 .filter(query);
-        
+
         AggregationResult aggregationResult;
         try {
             aggregationResult = datastoreSchemaClient.aggregate(aggregationBuilder);

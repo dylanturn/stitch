@@ -113,7 +113,7 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
 
     @Override
     public DataStoreInfo getDatastore(String dataStoreId) {
-        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "listDataStores")
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "getDatastore")
                 .putArg(String.class, dataStoreId);
         try {
             return (DataStoreInfo) rpcClient.invokeRPC(rpcRequest).getResponseObject();
