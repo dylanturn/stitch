@@ -1,8 +1,10 @@
 package stitch.aggregator;
 
+import com.google.gson.Gson;
 import org.apache.log4j.Logger;
 import stitch.aggregator.metastore.MetaStoreCallable;
 import stitch.datastore.DataStoreClient;
+import stitch.datastore.DataStoreInfo;
 import stitch.resource.Resource;
 import stitch.transport.TransportCallableServer;
 import stitch.rpc.RpcRequestHandler;
@@ -16,6 +18,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import static spark.Spark.*;
 
 
 public class AggregatorServer implements Runnable {
@@ -31,6 +34,24 @@ public class AggregatorServer implements Runnable {
     public AggregatorServer(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         configStore = ConfigStore.loadConfigStore();
         this.endpointConfig = endpointConfig;
+
+        port(8090);
+
+        get("/api/v1/datastore", (request, response) -> {
+            response.type("application/json");
+            String datastoreQuery = request.queryParams("query");
+            logger.info("Request Param Size: " + request.params().size());
+            logger.info("Request Query Param Size: " + request.queryParams().size());
+            logger.info(datastoreQuery);
+            DataStoreInfo[] datastoreInfoList = callableMetaStore.findDataStores(datastoreQuery);
+
+            Gson gson = new Gson();
+            String dsJson = gson.toJson(datastoreInfoList);
+            logger.trace("getting output string: " + dsJson);
+            return dsJson;
+
+        });
+
     }
 
     private void createCallableAggregator() throws IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchMethodException, ClassNotFoundException {

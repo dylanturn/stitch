@@ -41,7 +41,14 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
 
     @Override
     public String createResource(Resource resource) {
-        return null;
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "createResource")
+                .putResourceArg(resource);
+        try {
+            return (String) rpcClient.invokeRPC(rpcRequest).getResponseObject();
+        } catch(Exception error){
+            logger.error("Failed to update the resource: " + resource.getID(), error);
+            return null;
+        }
     }
 
     @Override
@@ -129,8 +136,8 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
     }
 
     @Override
-    public DataStoreInfo[] findDataStores() {
-        return listDataStores().toArray(new DataStoreInfo[0]);
+    public DataStoreInfo[] findDataStores(String query) {
+        return new DataStoreInfo[0];
     }
 
     @Override

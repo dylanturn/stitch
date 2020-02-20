@@ -1,6 +1,9 @@
 package stitch.aggregator.metastore.redisearch;
 
 import io.redisearch.*;
+import io.redisearch.aggregation.AggregationBuilder;
+import io.redisearch.aggregation.AggregationRequest;
+import io.redisearch.aggregation.Row;
 import io.redisearch.client.Client;
 import org.apache.log4j.Logger;
 import stitch.datastore.DataStoreInfo;
@@ -8,6 +11,7 @@ import stitch.datastore.DataStoreStatus;
 import stitch.datastore.ReplicaStatus;
 import stitch.resource.ResourceStatus;
 
+import javax.xml.crypto.Data;
 import java.time.Instant;
 import java.util.*;
 
@@ -248,5 +252,100 @@ public class MetaCacheManager {
             logger.warn("No replicas found!");
             return null;
         }
+    }
+
+    protected DataStoreInfo selectEligibleDataStore(String performanceTier, long blockSize){
+        DataStoreInfo leastUsedDatastore = getLeastUsedDatastore(performanceTier);
+        if(leastUsedDatastore.getAvailableQuota() >= blockSize ){
+            return leastUsedDatastore;
+        }
+        return null;
+    }
+
+    protected DataStoreInfo[] searchDatastores(String query) {
+
+        AggregationBuilder aggregationBuilder = new AggregationBuilder();
+        aggregationBuilder
+                .load("@datastore_id", "@hard_quota", "@used_quota", "@performance_tier", "@instance_class", "@resource_count")
+                .filter(query);
+        
+        AggregationResult aggregationResult;
+        try {
+            aggregationResult = datastoreSchemaClient.aggregate(aggregationBuilder);
+        } catch(Exception error){
+            logger.error("Had error!", error);
+            return null;
+        }
+
+        int resultSetSize = aggregationResult.getResults().size();
+        logger.info("Rows Returned: " + resultSetSize);
+
+        if(resultSetSize > 0){
+            DataStoreInfo[] dataStoreInfos = new DataStoreInfo[resultSetSize];
+            for(int i=0; i < resultSetSize; i++){
+
+                //Map<String, Object> result = results.get(i);
+                String datastoreId = aggregationResult.getRow(i).getString("datastore_id");
+                String performanceTier = aggregationResult.getRow(i).getString("performance_tier");
+                String instanceClass = aggregationResult.getRow(i).getString("instance_class");
+                Long hardQuota = aggregationResult.getRow(i).getLong("hard_quota");
+                Long usedQuota = aggregationResult.getRow(i).getLong("used_quota");
+                Long resourceCount = aggregationResult.getRow(i).getLong("resource_count");
+
+                logger.info(datastoreId);
+                logger.info(performanceTier);
+                logger.info(instanceClass);
+                logger.info(hardQuota);
+                logger.info(usedQuota);
+                logger.info(resourceCount);
+
+                dataStoreInfos[i] = new DataStoreInfo(datastoreId)
+                        .setHardQuota(hardQuota)
+                        .setUsedQuota(usedQuota)
+                        .setResourceCount(resourceCount)
+                        .setPerformanceTier(performanceTier)
+                        .setInstanceClass(instanceClass);
+            }
+            return dataStoreInfos;
+        }
+        return null;
+    }
+
+    protected DataStoreInfo getLeastUsedDatastore(String performanceTier){
+
+        /*
+        #######
+        # The query used
+        #######
+        FT.AGGREGATE datastore_meta "*"
+        LOAD 4 @datastore_id @hard_quota @used_quota @performance_tier
+        FILTER "@performance_tier=='general'"
+        APPLY "@hard_quota - @used_quota" AS available_quota
+        SORTBY 2 @available_quota DESC
+        LIMIT 0 1
+        */
+        AggregationRequest aggregationRequest = new AggregationRequest(String.format("@performance_tier=='%s'", performanceTier));
+        aggregationRequest
+                .load("datastore_id", "hard_quota", "used_quota", "performance_tier")
+                .apply("@hard_quota - @used_quota", "available_quota")
+                .sortByDesc("available_quota")
+                .limit(1);
+
+        AggregationResult aggregationResult = datastoreSchemaClient.aggregate(aggregationRequest);
+        Row firstRow = aggregationResult.getRow(0);
+        if(firstRow == null){
+            logger.error("Couldn't find any datastores!");
+            return null;
+        } else {
+            if (firstRow.containsKey("datastore_id")){
+                return getDataStoreInfo(firstRow.getString("datastore_id"));
+            } else {
+                logger.error("Row didn't contain datastore_id!");
+                logger.error(firstRow.toString());
+            }
+
+        }
+        logger.error("Couldn't find any datastores!");
+        return null;
     }
 }

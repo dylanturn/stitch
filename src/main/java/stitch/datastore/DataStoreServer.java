@@ -11,7 +11,6 @@ import stitch.util.configuration.item.ConfigItem;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
-import static spark.Spark.*;
 
 public abstract class DataStoreServer implements DataStoreCallable, ResourceCallable, Runnable {
 
@@ -27,6 +26,8 @@ public abstract class DataStoreServer implements DataStoreCallable, ResourceCall
 
     public DataStoreServer(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException, InvocationTargetException, NoSuchMethodException {
         this.endpointConfig = endpointConfig;
+        this.hardQuota = endpointConfig.getConfigLong("hard_quota");
+        this.usedQuota = endpointConfig.getConfigLong("used_quota");
         this.startTime = Instant.now().toEpochMilli();
         statusReporter = new StatusReporter(this);
     }

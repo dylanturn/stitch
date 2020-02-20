@@ -20,6 +20,8 @@ public class StatusReporter {
         this.timer = new Timer();
         this.task = new Reporter(dataStoreServer);
 
+        // TODO: Add endpoing to stop or restart the datastore
+
         get("/api/v1/health", (request, response) -> {
             response.type("application/json");
 

@@ -41,13 +41,18 @@ public class RedisAggregator implements MetaStoreCallable {
         metaCacheManager = new MetaCacheManager(redisearchHost, redisearchPort);
     }
 
-    // TODO: Implement this!
     @Override
     public String createResource(Resource resource) {
+        // TODO: Make this method accept a performance tier parameter.
+        DataStoreInfo selectedStore = metaCacheManager.selectEligibleDataStore("general", resource.getDataSize());
+        try {
+            aggregatorServer.getDataStoreClient(selectedStore.getId()).createResource(resource);
+        } catch (Exception error) {
+            logger.error("Failed to create the resource!", error);
+        }
         return null;
     }
 
-    // TODO: Implement this!
     @Override
     public Resource getResource(String resourceId) {
         try {
@@ -147,8 +152,8 @@ public class RedisAggregator implements MetaStoreCallable {
     }
 
     @Override
-    public DataStoreInfo[] findDataStores() {
-        return listDataStores().toArray(new DataStoreInfo[0]);
+    public DataStoreInfo[] findDataStores(String query) {
+        return metaCacheManager.searchDatastores(query);
     }
 
     @Override

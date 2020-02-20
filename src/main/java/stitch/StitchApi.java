@@ -12,6 +12,7 @@ import stitch.resource.Resource;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import static spark.Spark.*;
 
@@ -31,7 +32,10 @@ public class StitchApi {
                 break;
             }
         }
+
         aggregatorClient = new AggregatorClient(aggregatorId);
+
+        port(8080);
 
         get("/api/v1/health", (request, response) -> {
             response.type("application/json");
@@ -53,6 +57,32 @@ public class StitchApi {
 
 
         /* #### RESOURCES ### */
+
+        post("/api/v1/resource", (request, response) -> {
+            response.type("application/json");
+            String requestBody = request.body();
+            logger.info(requestBody);
+            String resourceId = aggregatorClient.createResource(Resource.fromJson(requestBody));
+            if(resourceId == null){
+                response.status(500);
+            } else {
+                response.status(200);
+            }
+            return String.format("{ \"resource_id\": \"%s\" }", resourceId);
+
+        });
+
+        put("/api/v1/resource", (request, response) -> {
+            response.type("application/json");
+            boolean updateSuccess = aggregatorClient.updateResource(Resource.fromJson(request.body()));
+            if(updateSuccess){
+                response.status(204);
+            } else {
+                response.status(500);
+            }
+            return null;
+        });
+
         get("/api/v1/resource", (request, response) -> {
             response.type("application/json");
             return resourceListToJson(aggregatorClient.listResources());

@@ -15,7 +15,7 @@ public interface MetaStoreCallable extends ResourceCallable {
 
     DataStoreInfo getDatastore(String datastoreId);
     Iterable<DataStoreInfo> listDataStores();
-    DataStoreInfo[] findDataStores();
+    DataStoreInfo[] findDataStores(String query);
 
     void reportDataStoreStatus(DataStoreStatus dataStoreStatus) throws IOException, InterruptedException;
 }

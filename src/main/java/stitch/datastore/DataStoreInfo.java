@@ -40,6 +40,10 @@ public class DataStoreInfo implements Serializable {
         return hardQuota;
     }
 
+    public long getAvailableQuota(){
+        return getHardQuota() - getUsedQuota();
+    }
+
     public long getResourceCount() {
         return resourceCount;
     }
