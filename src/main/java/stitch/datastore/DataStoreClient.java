@@ -1,74 +1,123 @@
 package stitch.datastore;
 
 import org.apache.log4j.Logger;
-import stitch.amqp.AMQPClient;
-import stitch.amqp.AMQPPrefix;
-import stitch.amqp.rpc.RPCRequest;
+import stitch.resource.ResourceRequest;
+import stitch.resource.ResourceStore;
+import stitch.rpc.RpcRequest;
 import stitch.resource.Resource;
+import stitch.transport.TransportCallableClient;
+import stitch.transport.TransportFactory;
+import stitch.util.configuration.item.ConfigItem;
+import stitch.util.configuration.store.ConfigStore;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Map;
 
-public class DataStoreClient extends AMQPClient implements DataStore {
+public class DataStoreClient implements DataStore, ResourceStore {
 
     static final Logger logger = Logger.getLogger(DataStoreClient.class);
 
+    protected ConfigItem endpointConfig;
+    protected TransportCallableClient rpcClient;
 
-    public DataStoreClient(String id) throws Exception {
-        super(AMQPPrefix.DATASTORE, id);
+    public DataStoreClient(String endpointId) throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException {
+        this(ConfigStore.loadConfigStore().getConfigItemById(endpointId));
+    }
+
+    public DataStoreClient(ConfigItem endpointConfig) throws InstantiationException, IllegalAccessException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException {
+        this.endpointConfig = endpointConfig;
+        rpcClient = TransportFactory.newRpcClient(endpointConfig.getConfigId());
     }
 
     @Override
-    public String createResource(Resource resource) throws Exception  {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "createResource")
-                .putArg("resource", resource);
-        return (String)invokeRPC(rpcRequest).getResponseObject();
+    public String createResource(String performanceTier, long dataSize, String dataType, Map<String, Object> metaMap) throws Exception {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "createResource")
+                .putStringArg(performanceTier)
+                .putLongArg(dataSize)
+                .putStringArg(dataType)
+                .putArg(Map.class, metaMap);
+        return (String)rpcClient.invokeRPC(rpcRequest).getResponseObject();
+    }
+
+    @Override
+    public String createResource(ResourceRequest resourceRequest) throws Exception {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "createResource")
+                .putArg(ResourceRequest.class, resourceRequest);
+        return (String)rpcClient.invokeRPC(rpcRequest).getResponseObject();
     }
 
     @Override
     public boolean updateResource(Resource resource) throws Exception {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "updateResource")
-                .putArg("resource", resource);
-        return (boolean)invokeRPC(rpcRequest).getResponseObject();
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "updateResource")
+                .putResourceArg(resource);
+        return (boolean)rpcClient.invokeRPC(rpcRequest).getResponseObject();
     }
 
     @Override
     public Resource getResource(String resourceId) throws Exception {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "getResource")
-                .putArg("resourceId", resourceId);
-        return (Resource) invokeRPC(rpcRequest).getResponseObject();
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "getResource")
+                .putStringArg(resourceId);
+        return (Resource) rpcClient.invokeRPC(rpcRequest).getResponseObject();
     }
 
     @Override
     public boolean deleteResource(String resourceId) throws Exception {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "deleteResource")
-                .putArg("resourceId", resourceId);
-        return (boolean)invokeRPC(rpcRequest).getResponseObject();
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "deleteResource")
+                .putStringArg(resourceId);
+        return (boolean)rpcClient.invokeRPC(rpcRequest).getResponseObject();
     }
 
     @Override
     public ArrayList<Resource> listResources() {
-        return this.listResources(true);
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "listResources");
+        try{
+            return (ArrayList<Resource>)rpcClient.invokeRPC(rpcRequest).getResponseObject();
+
+        } catch(Exception error){
+            logger.error(String.format("Failed to list the available resource metadata for datastore %s", endpointConfig.getConfigName()), error);
+            return null;
+        }
+    }
+
+    // TODO: Implement some kind of resource search logic.
+    @Override
+    public ArrayList<Resource> findResources(String filter) {
+        return listResources();
     }
 
     @Override
-    public ArrayList<Resource> listResources(boolean includeData) {
-        RPCRequest rpcRequest = new RPCRequest("", getRouteKey(), "listResources")
-                .putArg("includeData", includeData);
+    public byte[] readData(String resourceId) {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "readData")
+                .putStringArg(resourceId);
         try{
-            return (ArrayList<Resource>)invokeRPC(rpcRequest).getResponseObject();
+            return (byte[])rpcClient.invokeRPC(rpcRequest).getResponseObject();
+
         } catch(Exception error){
-            logger.error(String.format("Failed to list the available resource metadata for datastore %s", getId()),error);
+            logger.error(String.format("Failed to read data from %s", resourceId), error);
             return null;
         }
     }
 
     @Override
-    public void run() {
-        logger.info("Started Aggregator Client...");
+    public boolean isReady() {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "isReady");
+        try {
+            return (boolean) rpcClient.invokeRPC(rpcRequest).getResponseObject();
+        } catch(Exception error) {
+            logger.error("Failed to check if datastore is ready!", error);
+            return false;
+        }
     }
 
     @Override
-    public void shutdown() {
-        logger.info("Shutting down aggregator client...");
+    public boolean isAlive() {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "isAlive");
+        try {
+            return (boolean) rpcClient.invokeRPC(rpcRequest).getResponseObject();
+        } catch(Exception error) {
+            logger.error("Failed to check if datastore is alive!", error);
+            return false;
+        }
     }
 }
