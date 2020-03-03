@@ -13,7 +13,7 @@ public abstract class EndpointStatus implements Serializable {
     private long reportTime;
 
     private boolean isHealthy;
-    private ArrayList<EndpointAlarm> alarms = new ArrayList<>();
+    private ArrayList<HealthAlarm> alarms = new ArrayList<>();
 
     public EndpointStatus(String id, long startTime){
         this.reportTime = Instant.now().toEpochMilli();
@@ -32,7 +32,7 @@ public abstract class EndpointStatus implements Serializable {
     }
     public long getStartTime() { return startTime; }
     public long getEndpointUptime() { return Instant.now().toEpochMilli() - startTime;  }
-    public EndpointAlarm[] getAlarms(){return alarms.toArray( new EndpointAlarm[0]); }
+    public HealthAlarm[] getAlarms(){return alarms.toArray( new HealthAlarm[0]); }
 
 
     public EndpointStatus setIsHealthy(boolean isHealthy){
@@ -40,13 +40,13 @@ public abstract class EndpointStatus implements Serializable {
         return this;
     }
 
-    public EndpointStatus addAlarm(EndpointAlarm endpointAlarm) {
-        alarms.add(endpointAlarm);
+    public EndpointStatus addAlarm(HealthAlarm healthAlarm) {
+        alarms.add(healthAlarm);
         return this;
     }
 
-    public EndpointStatus addAllAlarms(ArrayList<EndpointAlarm> nodeEndpointAlarms){
-        this.alarms.addAll(nodeEndpointAlarms);
+    public EndpointStatus addAllAlarms(ArrayList<HealthAlarm> healthAlarms){
+        this.alarms.addAll(healthAlarms);
         return this;
     }
 

@@ -8,9 +8,11 @@ import org.bson.Document;
 import org.bson.types.Binary;
 import stitch.datastore.DataStoreServer;
 import stitch.resource.Resource;
+import stitch.resource.ResourceRequest;
 import stitch.util.configuration.item.ConfigItem;
 
 import java.lang.reflect.InvocationTargetException;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -38,7 +40,7 @@ public class MongoDataStoreServer extends DataStoreServer {
         String database = endpointConfig.getConfigString("database");
         String collection = endpointConfig.getConfigString("collection");
 
-        logger.info("Start a new DataStoreCallable instance...");
+        logger.info("Start a new DataStore instance...");
         logger.info("UUID:  " + endpointConfig.getConfigId());
         logger.info("Class: " + endpointConfig.getConfigString("class"));
         logger.info("Type: " + endpointConfig.getConfigString("type"));
@@ -59,62 +61,106 @@ public class MongoDataStoreServer extends DataStoreServer {
         }
     }
 
-    private static Document fromResource(Resource resource) {
-        return fromResource(resource, true);
-    }
 
-    private static Document fromResource(Resource resource, boolean includeData){
+    /*
+        // resource_id
+    private String id;
+    // created
+    private long created;
+    // mtime
+    private long mtime;
+    // epoch
+    private long epoch;
+    // last_hash
+    private String lastHash;
+    // last_seen
+    private long lastSeen;
+    // data_size
+    private long dataSize;
+    // data_type
+    private String dataType;
+    // performance_tier
+    private String performanceTier;
+    // meta_map
+    private Map<String, Object> metaMap = new HashMap<>();
+     */
+
+    private static Document fromResource(Resource resource){
         Document document = new Document();
+        document.put("resource_id", resource.getId());
+        document.put("created", resource.getCreated());
+        document.put("mtime", resource.getMtime());
+        document.put("epoch", resource.getEpoch());
+        document.put("last_hash", resource.getLastHash());
+        document.put("last_seen", resource.getLastSeen());
+        document.put("data_size", resource.getDataSize());
+        document.put("data_type", resource.getDataType());
+        document.put("performance_tier", resource.getPerformanceTier());
         Document metaDocument = new Document();
-        document.put("uuid", resource.getID());
         metaDocument.putAll(resource.getMetaMap());
-        document.put("meta", metaDocument);
-        if(includeData) {
-            document.put("data", resource.getData());
-        } else {
-            document.put("data", new byte[0]);
-        }
+        document.put("meta_map", metaDocument);
         return document;
     }
 
-    private static Resource toResource(Document document) {
-        return toResource(document, true);
-    }
-
-    private static Resource toResource(Document document, boolean includeData){
-        String uuid = document.getString("uuid");
-        Document metaDocument = document.get("meta", Document.class);
-        HashMap<String, Object> metaMap = new HashMap<>();
-        for(Map.Entry<String, Object> entry : metaDocument.entrySet()) {
-            metaMap.put(entry.getKey(), entry.getValue());
-        }
-
-        if(includeData){
-            return new Resource(uuid, metaMap, document.get("data", Binary.class).getData());
-        } else {
-            return new Resource(uuid, metaMap, null);
-        }
+    private static Resource toResource(Document document){
+        return new Resource(
+                document.getString("resource_id"),
+                document.getLong("created"),
+                document.getLong("mtime"),
+                document.getLong("epoch"),
+                document.getString("last_hash"),
+                document.getLong("last_seen"),
+                document.getLong("data_size"),
+                document.getString("data_type"),
+                document.getString("performance_tier"),
+                document.get("meta_map", Document.class)
+        );
     }
 
     @Override
-    public String createResource(Resource resource) {
-        try {
-            logger.info(String.format("Creating resource: %s", resource.getID()));
-            MongoDatabase mdb = mongoClient.getDatabase(endpointConfig.getConfigString("database"));
-            MongoCollection<Document> mcol = mdb.getCollection(endpointConfig.getConfigString("collection"));
-            mcol.insertOne(fromResource(resource));
-            return resource.getID();
-        } catch(Exception error){
-            logger.error("Mongo Update Failed!", error);
-            return null;
-        }
+    public String createResource(String performanceTier, long dataSize, String dataType, Map<String, Object> metaMap) {
+        logger.trace("Creating resource!");
+        MongoDatabase mdb = mongoClient.getDatabase(endpointConfig.getConfigString("database"));
+        MongoCollection<Document> mcol = mdb.getCollection(endpointConfig.getConfigString("collection"));
+
+        Resource resource = new Resource();
+        resource.setId(UUID.randomUUID().toString().replace("-", ""))
+                .setCreated(Instant.now().toEpochMilli())
+                .setDataSize(dataSize)
+                .setDataType(dataType)
+                .setPerformanceTier(performanceTier)
+                .setMeta(metaMap);
+
+        logger.trace(String.format("Inserting resource %s into the database...",resource.getId()));
+        mcol.insertOne(fromResource(resource));
+        return resource.getId();
+    }
+
+    @Override
+    public String createResource(ResourceRequest resourceRequest) throws Exception {
+
+        logger.trace("Creating resource!");
+        MongoDatabase mdb = mongoClient.getDatabase(endpointConfig.getConfigString("database"));
+        MongoCollection<Document> mcol = mdb.getCollection(endpointConfig.getConfigString("collection"));
+
+        Resource resource = new Resource();
+        resource.setId(UUID.randomUUID().toString().replace("-", ""))
+                .setCreated(Instant.now().toEpochMilli())
+                .setDataSize(resourceRequest.getDataSize())
+                .setDataType(resourceRequest.getDataType())
+                .setPerformanceTier(resourceRequest.getPerformanceTier())
+                .setMeta(resourceRequest.getMetaMap());
+
+        logger.trace(String.format("Inserting resource %s into the database...",resource.getId()));
+        mcol.insertOne(fromResource(resource));
+        return resource.getId();
     }
 
     @Override
     public boolean updateResource(Resource resource) {
-        logger.trace(String.format("Updating resource: %s", resource.getID()));
+        logger.trace(String.format("Updating resource: %s", resource.getId()));
         BasicDBObject query = new BasicDBObject();
-        query.put("uuid", resource.getID());
+        query.put("uuid", resource.getId());
         return mongoCollection.updateOne(query, fromResource(resource)).wasAcknowledged();
     }
 
@@ -140,9 +186,9 @@ public class MongoDataStoreServer extends DataStoreServer {
         logger.trace("Listing Resources");
         ArrayList<Resource> resourceList = new ArrayList<>();
         FindIterable<Document> foundDocuments;
-        foundDocuments = mongoCollection.find().projection(fields(include("uuid", "meta")));
+        foundDocuments = mongoCollection.find();
         for(Document document : foundDocuments){
-            resourceList.add(toResource(document, false));
+            resourceList.add(toResource(document));
         }
         return resourceList;
     }
@@ -153,9 +199,23 @@ public class MongoDataStoreServer extends DataStoreServer {
         return listResources();
     }
 
+    @Override
+    public byte[] readData(String resourceId) {
+        logger.trace(String.format("Getting resource: %s", resourceId));
+        BasicDBObject query = new BasicDBObject();
+        query.put("uuid", resourceId);
+        Document resourceObject = mongoCollection.find(query).first();
+        return resourceObject.get("data", Binary.class).getData();
+    }
+
+    public byte[] readData(String resourceId, long offset, long length){
+        byte[] dataBytes = readData(resourceId);
+        // TODO: THIS STUFF
+        return dataBytes;
+    }
 
     @Override
-    public boolean isDataStoreReady() {
+    public boolean isReady() {
         ListCollectionsIterable<Document> mongoCollectionlist = mongoDatabase.listCollections()
                 .maxTime(60, TimeUnit.SECONDS);
 

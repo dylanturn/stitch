@@ -1,11 +1,10 @@
 package stitch.aggregator;
 
-import com.google.gson.Gson;
 import org.apache.log4j.Logger;
-import stitch.aggregator.metastore.MetaStoreCallable;
+import stitch.aggregator.metastore.MetaStore;
 import stitch.datastore.DataStoreClient;
-import stitch.datastore.DataStoreInfo;
-import stitch.resource.Resource;
+import stitch.resource.ResourceRequest;
+import stitch.resource.ResourceStore;
 import stitch.transport.TransportCallableServer;
 import stitch.rpc.RpcRequestHandler;
 import stitch.transport.TransportFactory;
@@ -15,13 +14,12 @@ import stitch.util.configuration.store.ConfigStore;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import static spark.Spark.*;
 
 
-public class AggregatorServer implements Runnable {
+public class AggregatorServer implements ResourceStore, Runnable {
 
     static final Logger logger = Logger.getLogger(AggregatorServer.class);
 
@@ -29,35 +27,18 @@ public class AggregatorServer implements Runnable {
     protected ConfigItem endpointConfig;
     protected TransportCallableServer rpcServer;
     protected HashMap<String, DataStoreClient> dataStoreClients = new HashMap<>();
-    private MetaStoreCallable callableMetaStore;
+    private MetaStore callableMetaStore;
+    private AggregatorAPI aggregatorAPI;
 
     public AggregatorServer(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         configStore = ConfigStore.loadConfigStore();
         this.endpointConfig = endpointConfig;
-
-        port(8090);
-
-        get("/api/v1/datastore", (request, response) -> {
-            response.type("application/json");
-            String datastoreQuery = request.queryParams("query");
-            logger.info("Request Param Size: " + request.params().size());
-            logger.info("Request Query Param Size: " + request.queryParams().size());
-            logger.info(datastoreQuery);
-            DataStoreInfo[] datastoreInfoList = callableMetaStore.findDataStores(datastoreQuery);
-
-            Gson gson = new Gson();
-            String dsJson = gson.toJson(datastoreInfoList);
-            logger.trace("getting output string: " + dsJson);
-            return dsJson;
-
-        });
-
     }
 
     private void createCallableAggregator() throws IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchMethodException, ClassNotFoundException {
-        Class<? extends MetaStoreCallable> metaStoreCallableClass = endpointConfig.getConfigClass("class");
+        Class<? extends MetaStore> metaStoreCallableClass = endpointConfig.getConfigClass("class");
         Constructor<?> metaStoreCallableClassConstructor = metaStoreCallableClass.getConstructor(AggregatorServer.class);
-        this.callableMetaStore = (MetaStoreCallable) metaStoreCallableClassConstructor.newInstance(this);
+        this.callableMetaStore = (MetaStore) metaStoreCallableClassConstructor.newInstance(this);
     }
 
     private void connectDataStoreClients() throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
@@ -72,12 +53,16 @@ public class AggregatorServer implements Runnable {
     }
 
     private void connectRpcTransport() throws IllegalAccessException, ClassNotFoundException, InstantiationException, InvocationTargetException, NoSuchMethodException {
-        rpcServer = TransportFactory.newRpcServer(endpointConfig, new RpcRequestHandler(MetaStoreCallable.class, callableMetaStore));
+        rpcServer = TransportFactory.newRpcServer(endpointConfig, new RpcRequestHandler(MetaStore.class, callableMetaStore));
         new Thread(rpcServer).start();
     }
 
     public DataStoreClient getDataStoreClient(String dataStoreClientId) {
         return dataStoreClients.get(dataStoreClientId);
+    }
+
+    public void startAggregatorAPI(){
+        aggregatorAPI = new AggregatorAPI(callableMetaStore);
     }
 
     public ConfigItem getEndpointConfig() {
@@ -100,9 +85,8 @@ public class AggregatorServer implements Runnable {
             logger.trace("Connecting to the RPC Transport");
             connectRpcTransport();
 
-            // Request a list of resources from all the DataStores and put them in the cache.
-            // logger.trace("Registering resources");
-            // this.registerResources();
+            logger.trace("Starting the Aggregator API");
+            startAggregatorAPI();
 
         } catch (IllegalAccessException e) {
             e.printStackTrace();
@@ -117,4 +101,47 @@ public class AggregatorServer implements Runnable {
         }
     }
 
+    @Override
+    public String createResource(String performanceTier, long dataSize, String dataType, Map<String, Object> metaMap) throws Exception {
+        return null;
+    }
+
+    @Override
+    public String createResource(ResourceRequest resourceRequest) throws Exception {
+        return this.createResource(
+                resourceRequest.getPerformanceTier(),
+                resourceRequest.getDataSize(),
+                resourceRequest.getDataType(),
+                resourceRequest.getMetaMap());
+    }
+
+    @Override
+    public boolean updateResource(stitch.resource.Resource resource) throws Exception {
+        return false;
+    }
+
+    @Override
+    public stitch.resource.Resource getResource(String resourceId) throws Exception {
+        return null;
+    }
+
+    @Override
+    public boolean deleteResource(String resourceId) throws Exception {
+        return false;
+    }
+
+    @Override
+    public List<stitch.resource.Resource> listResources() {
+        return null;
+    }
+
+    @Override
+    public List<stitch.resource.Resource> findResources(String filter) {
+        return null;
+    }
+
+    @Override
+    public byte[] readData(String resourceId) {
+        return new byte[0];
+    }
 }

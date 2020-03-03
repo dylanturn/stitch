@@ -1,41 +1,33 @@
 package stitch.datastore;
 
 import stitch.resource.Resource;
-import stitch.resource.ResourceStatus;
-import stitch.util.EndpointStatus;
+import stitch.util.HealthAlarm;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public class DataStoreStatus extends EndpointStatus {
+public class DataStoreStatus extends DataStoreInfo {
 
-    private String performanceTier;
-    private long usedQuota = -1;
-    private long hardQuota = -1;
-    private List<ResourceStatus> resourceStatusList = new ArrayList<>();
+    private long reportTime;
+    private List<HealthAlarm> alarmList = new ArrayList<>();
+    private List<Resource> resourceList = new ArrayList<>();
 
     public DataStoreStatus(DataStoreServer server) {
-        super(server.getId(), server.getStartTime());
-        performanceTier = server.getPerformanceTier();
-        usedQuota = server.getUsedQuota();
-        hardQuota = server.getHardQuota();
-        for(Resource resource : server.listResources()){
-            resourceStatusList.add(resource.getStatus());
-        }
+        reportTime = Instant.now().toEpochMilli();
+        setId(server.getId());
+        setStartTime(server.getStartTime());
+        setPerformanceTier(server.getPerformanceTier());
+        setUsedQuota(server.getUsedQuota());
+        setHardQuota(server.hardQuota);
+        alarmList.addAll(server.listAlarms());
+        resourceList.addAll(server.listResources());
     }
 
-    public String getPerformanceTier() { return performanceTier; }
-    public long getUsedQuota() {
-        return usedQuota;
-    }
-    public long getHardQuota() {
-        return hardQuota;
-    }
-    public long getResourceCount() { return resourceStatusList.size(); }
-    public ResourceStatus[] getResourceStatuses(){
-        return resourceStatusList.toArray(new ResourceStatus[0]);
-    }
+    public long getReportTime() { return reportTime; }
+    public HealthAlarm[] getAlarms(){ return alarmList.toArray(new HealthAlarm[0]); }
+    public Resource[] getResources(){ return resourceList.toArray(new Resource[0]); }
 
     @Override
     public int hashCode() {

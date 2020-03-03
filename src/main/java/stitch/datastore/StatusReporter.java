@@ -25,8 +25,8 @@ public class StatusReporter {
         get("/api/v1/health", (request, response) -> {
             response.type("application/json");
 
-            boolean datastoreAlive = dataStoreServer.isDataStoreAlive();
-            boolean datastoreReady = dataStoreServer.isDataStoreReady();
+            boolean datastoreAlive = dataStoreServer.isAlive();
+            boolean datastoreReady = dataStoreServer.isReady();
 
             if(!datastoreAlive || !datastoreReady) {
                 response.status(500);
@@ -42,7 +42,7 @@ public class StatusReporter {
         get("/api/v1/health/alive", (request, response) -> {
             response.type("application/json");
 
-            boolean datastoreAlive = dataStoreServer.isDataStoreAlive();
+            boolean datastoreAlive = dataStoreServer.isAlive();
 
             if(!datastoreAlive) {
                 response.status(500);
@@ -57,7 +57,7 @@ public class StatusReporter {
         get("/api/v1/health/ready", (request, response) -> {
             response.type("application/json");
 
-            boolean datastoreReady = dataStoreServer.isDataStoreReady();
+            boolean datastoreReady = dataStoreServer.isReady();
 
             if(!datastoreReady) {
                 response.status(500);

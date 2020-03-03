@@ -2,17 +2,20 @@ package stitch.datastore;
 
 
 import org.apache.log4j.Logger;
-import stitch.resource.ResourceCallable;
+import stitch.resource.ResourceStore;
 import stitch.transport.TransportCallableServer;
 import stitch.rpc.RpcRequestHandler;
 import stitch.transport.TransportFactory;
+import stitch.util.HealthAlarm;
 import stitch.util.configuration.item.ConfigItem;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
-public abstract class DataStoreServer implements DataStoreCallable, ResourceCallable, Runnable {
+public abstract class DataStoreServer implements DataStore, ResourceStore, Runnable {
 
     static final Logger logger = Logger.getLogger(DataStoreServer.class);
     protected ConfigItem endpointConfig;
@@ -21,8 +24,10 @@ public abstract class DataStoreServer implements DataStoreCallable, ResourceCall
     private long startTime;
     protected long usedQuota;
     protected long hardQuota;
-    private DataStoreCallable callableDataStore;
+    private DataStore datastore;
     private int reportInterval = 5000;
+
+    private List<HealthAlarm> healthAlarmList = new ArrayList<>();
 
     public DataStoreServer(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException, InvocationTargetException, NoSuchMethodException {
         this.endpointConfig = endpointConfig;
@@ -33,13 +38,13 @@ public abstract class DataStoreServer implements DataStoreCallable, ResourceCall
     }
 
     private void connectDataStoreBackend() throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
-        Class<? extends DataStoreCallable> dataStoreCallableClass = endpointConfig.getConfigClass("class");
+        Class<? extends DataStore> dataStoreCallableClass = endpointConfig.getConfigClass("class");
         Constructor<?> dataStoreCallableClassConstructor = dataStoreCallableClass.getConstructor(ConfigItem.class);
-        this.callableDataStore = (DataStoreCallable) dataStoreCallableClassConstructor.newInstance(endpointConfig);
+        this.datastore = (DataStore) dataStoreCallableClassConstructor.newInstance(endpointConfig);
     }
 
     private void connectRpcTransport() throws IllegalAccessException, ClassNotFoundException, InstantiationException, InvocationTargetException, NoSuchMethodException {
-        rpcServer = TransportFactory.newRpcServer(endpointConfig, new RpcRequestHandler(callableDataStore));
+        rpcServer = TransportFactory.newRpcServer(endpointConfig, new RpcRequestHandler(datastore));
         new Thread(rpcServer).start();
     }
 
@@ -62,12 +67,12 @@ public abstract class DataStoreServer implements DataStoreCallable, ResourceCall
         return hardQuota;
     }
 
-    public TransportCallableServer getRpcServer(){
-        return rpcServer;
+    public List<HealthAlarm> listAlarms(){
+        return healthAlarmList;
     }
 
     @Override
-    public boolean isDataStoreAlive() {
+    public boolean isAlive() {
 
         // TODO: Need to implement better livelyness checks.
 
@@ -91,7 +96,7 @@ public abstract class DataStoreServer implements DataStoreCallable, ResourceCall
         // Once the DataStoreServer has connected to the backend we can start the RPC transport.
         try {
 
-            // Do whatever needs to be done to connect to the DataStoreCallable backend.
+            // Do whatever needs to be done to connect to the DataStore backend.
             logger.trace("Connecting to the DataStores backend");
             connectDataStoreBackend();
 

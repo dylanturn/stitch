@@ -30,7 +30,7 @@ public class EndpointMetrics implements Serializable {
     private Triplet<Long,Long,Long> failureRate =  new Triplet<>(0L,0L,0L);
 
     // List of alarms applicable to this endpoint.
-    private List<EndpointAlarm> endpointAlarms;
+    private List<HealthAlarm> healthAlarms;
     private HashMap<String, Object> extraData = new HashMap<>();
 
     // Circular buffer of the last n number of RPC calls.
@@ -92,16 +92,16 @@ public class EndpointMetrics implements Serializable {
     }
 
     /* HEALTH ALARMS */
-    public EndpointAlarm[] getAlarms(){
-        return endpointAlarms.toArray( new EndpointAlarm[0] );
+    public HealthAlarm[] getAlarms(){
+        return healthAlarms.toArray( new HealthAlarm[0] );
     }
 
-    public void addAlarm(EndpointAlarm endpointAlarm) {
-        endpointAlarms.add(endpointAlarm);
+    public void addAlarm(HealthAlarm healthAlarm) {
+        healthAlarms.add(healthAlarm);
     }
 
-    public void addAlarm(ArrayList<EndpointAlarm> nodeEndpointAlarms){
-       endpointAlarms.addAll(nodeEndpointAlarms);
+    public void addAlarm(ArrayList<HealthAlarm> healthAlarms){
+       this.healthAlarms.addAll(healthAlarms);
     }
 
     public EndpointMetrics getRpcEndpointReporter(){

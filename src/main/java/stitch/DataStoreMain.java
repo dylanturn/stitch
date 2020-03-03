@@ -4,7 +4,6 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import org.apache.log4j.Logger;
 import org.slf4j.LoggerFactory;
-import stitch.datastore.DataStoreCallable;
 import stitch.datastore.DataStoreFactory;
 import stitch.datastore.DataStoreServer;
 import stitch.util.configuration.item.ConfigItem;
@@ -26,7 +25,7 @@ public class DataStoreMain {
         ((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger("org.mongodb.driver").setLevel(Level.ERROR);
         ConfigStore configStore = ConfigStore.loadConfigStore();
 
-        // Get the id of the DataStoreCallable we'd like to start.
+        // Get the id of the DataStore we'd like to start.
         String dataStoreId = null;
         for(int i = 0; i < args.length; i++) {
             if(args[i].equals("--id")){
@@ -36,12 +35,12 @@ public class DataStoreMain {
         }
 
         if(dataStoreId == null) {
-            // Create an instance of each DataStoreCallable.
+            // Create an instance of each DataStore.
             for (ConfigItem configItem : configStore.listConfigByItemType(ConfigItemType.DATASTORE)) {
                 startDataStoreServer(configItem);
             }
         } else {
-            logger.info("Starting DataStoreCallable with Id: " + dataStoreId);
+            logger.info("Starting DataStore with Id: " + dataStoreId);
             startDataStoreServer(ConfigStore.loadConfigStore().getConfigItemById(dataStoreId));
         }
 
@@ -56,6 +55,6 @@ public class DataStoreMain {
         providerThreads.put(endpoingConfig.getConfigId(), providerThread);
         providerHash.put(endpoingConfig.getConfigId(), dataStore);
         providerThread.start();
-        logger.info("DataStoreCallable instance started!!!");
+        logger.info("DataStore instance started!!!");
     }
 }

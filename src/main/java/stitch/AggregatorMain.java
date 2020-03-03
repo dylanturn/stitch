@@ -26,7 +26,7 @@ public class AggregatorMain {
 
         ConfigStore configStore = ConfigStore.loadConfigStore();
 
-        // Get the id of the DataStoreCallable we'd like to start.
+        // Get the id of the DataStore we'd like to start.
         String aggregatorId = null;
         for(int i = 0; i < args.length; i++) {
             if(args[i].equals("--id")){

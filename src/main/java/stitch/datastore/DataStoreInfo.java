@@ -8,7 +8,8 @@ public class DataStoreInfo implements Serializable {
 
     private static final long serialVersionUID = 6543L;
 
-    private String datastoreId;
+    private String id;
+    private long startTime;
     private String performanceTier;
     private String instanceClass;
     private long usedQuota;
@@ -19,10 +20,12 @@ public class DataStoreInfo implements Serializable {
     public DataStoreInfo(){}
 
     public DataStoreInfo(String id){
-        this.datastoreId = id;
+        this.id = id;
     }
 
-    public String getId(){ return datastoreId; }
+    public String getId(){ return id; }
+
+    public long getStartTime(){ return startTime; }
 
     public String getPerformanceTier() {
         return performanceTier;
@@ -50,6 +53,16 @@ public class DataStoreInfo implements Serializable {
 
     public long getLastSeen() {
         return lastSeen;
+    }
+
+    public DataStoreInfo setId(String id){
+        this.id = id;
+        return this;
+    }
+
+    public DataStoreInfo setStartTime(long startTime){
+        this.startTime = startTime;
+        return this;
     }
 
     public DataStoreInfo setPerformanceTier(String performanceTier){

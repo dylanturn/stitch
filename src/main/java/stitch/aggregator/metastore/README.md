@@ -24,7 +24,7 @@
 ##### Resource MetaData Schema
     String  resource_id
     String  datastore_id
-    String  replicaStatus
+    String  replicaRole
     Integer last_hash
     Long    last_seen
     

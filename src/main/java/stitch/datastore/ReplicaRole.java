@@ -1,6 +1,6 @@
 package stitch.datastore;
 
-public enum ReplicaStatus {
+public enum ReplicaRole {
     MASTER,
     ACTIVE,
     INACTIVE,

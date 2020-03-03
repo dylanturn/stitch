@@ -58,59 +58,7 @@ public class StitchApi {
 
         /* #### RESOURCES ### */
 
-        post("/api/v1/resource", (request, response) -> {
-            response.type("application/json");
-            String requestBody = request.body();
-            logger.info(requestBody);
-            String resourceId = aggregatorClient.createResource(Resource.fromJson(requestBody));
-            if(resourceId == null){
-                response.status(500);
-            } else {
-                response.status(200);
-            }
-            return String.format("{ \"resource_id\": \"%s\" }", resourceId);
 
-        });
-
-        put("/api/v1/resource", (request, response) -> {
-            response.type("application/json");
-            boolean updateSuccess = aggregatorClient.updateResource(Resource.fromJson(request.body()));
-            if(updateSuccess){
-                response.status(204);
-            } else {
-                response.status(500);
-            }
-            return null;
-        });
-
-        get("/api/v1/resource", (request, response) -> {
-            response.type("application/json");
-            return resourceListToJson(aggregatorClient.listResources());
-
-        });
-        get("/api/v1/resource/:resource_id", (request, response) -> {
-            response.type("application/json");
-            return Resource.toJson(aggregatorClient.getResource(request.params(":resource_id")));
-        });
-        get("/api/v1/resource/:resource_id/data", (request, response) -> {
-            response.type("application/json");
-            return aggregatorClient.getResource(request.params(":resource_id")).getData();
-        });
-        get("/api/v1/resource/:resource_id/meta/:meta_key", (request, response) -> {
-            response.type("application/json");
-            return aggregatorClient.getResource(request.params(":resource_id")).getMeta(request.params(":meta_key"));
-        });
-
-
-        /* #### DATASTORES ### */
-        get("/api/v1/datastore", (request, response) -> {
-            response.type("application/json");
-            return datastoreListToJson(aggregatorClient.listDataStores());
-        });
-        get("/api/v1/datastore/:datastore_id", (request, response) -> {
-            response.type("application/json");
-            return DataStoreInfo.toJson(aggregatorClient.getDatastore(request.params(":datastore_id")));
-        });
 
     }
 
@@ -118,11 +66,6 @@ public class StitchApi {
         Gson gson = new Gson();
         String rJson = gson.toJson(resourceList);
         return rJson;
-        /*Collection<String> jsonList = new ArrayList<>();
-        for(Resource resource : resourceList){
-            jsonList.add(Resource.toJson(resource));
-        }
-        return gson.toJson(jsonList);*/
     }
 
     private static String datastoreListToJson(List<DataStoreInfo> datastoreInfoList){

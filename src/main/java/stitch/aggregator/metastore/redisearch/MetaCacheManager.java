@@ -1,6 +1,5 @@
 package stitch.aggregator.metastore.redisearch;
 
-import com.mongodb.QueryBuilder;
 import io.redisearch.*;
 import io.redisearch.aggregation.AggregationBuilder;
 import io.redisearch.aggregation.AggregationRequest;
@@ -9,10 +8,9 @@ import io.redisearch.client.Client;
 import org.apache.log4j.Logger;
 import stitch.datastore.DataStoreInfo;
 import stitch.datastore.DataStoreStatus;
-import stitch.datastore.ReplicaStatus;
-import stitch.resource.ResourceStatus;
+import stitch.datastore.ReplicaRole;
+import stitch.resource.Resource;
 
-import javax.xml.crypto.Data;
 import java.time.Instant;
 import java.util.*;
 
@@ -44,7 +42,8 @@ public class MetaCacheManager {
                     .addNumericField("epoch")
                     .addNumericField("mtime")
                     .addNumericField("last_hash")
-                    .addNumericField("last_seen");
+                    .addNumericField("last_seen")
+                    .addTextField("performance_tier", 0.5);
             client.createIndex(resourceSchema, Client.IndexOptions.defaultOptions());
         }
         return client;
@@ -92,11 +91,11 @@ public class MetaCacheManager {
     protected void cacheDataStoreMeta(DataStoreStatus dataStoreStatus){
 
         // Try get the cache item from redisearch. NULL will be returned if it doesn't exist.
-        Document datastoreCache = this.datastoreSchemaClient.getDocument(dataStoreStatus.getEndpointId());
+        Document datastoreCache = this.datastoreSchemaClient.getDocument(dataStoreStatus.getId());
 
         // Create a hashmap with the last hash and update vaues. These get committed either way.
         Map<String, Object> datastoreFields = new HashMap<>();
-        datastoreFields.put("datastore_id", dataStoreStatus.getEndpointId());
+        datastoreFields.put("datastore_id", dataStoreStatus.getId());
         datastoreFields.put("last_hash", dataStoreStatus.hashCode());
         datastoreFields.put("last_seen", Instant.now().toEpochMilli());
 
@@ -104,7 +103,7 @@ public class MetaCacheManager {
         if(datastoreCache != null && datastoreCache.hasProperty("last_hash")) {
             // If the hash hasn't changed then we just update the two last fields and call it a day.
             if (Integer.valueOf(datastoreCache.getString("last_hash")).equals(dataStoreStatus.hashCode())) {
-                this.datastoreSchemaClient.updateDocument(dataStoreStatus.getEndpointId(), 0.5f, datastoreFields);
+                this.datastoreSchemaClient.updateDocument(dataStoreStatus.getId(), 0.5f, datastoreFields);
                 return;
             }
         }
@@ -119,14 +118,14 @@ public class MetaCacheManager {
         // If the document doesn't exist we'll create it. Otherwise we'll replace it.
         if(datastoreCache == null){
             // Create the cache document from scratch
-            this.datastoreSchemaClient.addDocument(dataStoreStatus.getEndpointId(), datastoreFields);
+            this.datastoreSchemaClient.addDocument(dataStoreStatus.getId(), datastoreFields);
         } else {
             // Pass the update with all of the fields we're replacing.
-            this.datastoreSchemaClient.replaceDocument(dataStoreStatus.getEndpointId(), 0.5f, datastoreFields);
+            this.datastoreSchemaClient.replaceDocument(dataStoreStatus.getId(), 0.5f, datastoreFields);
         }
     }
 
-    protected void cacheResourceMeta(String datastoreId, ResourceStatus resourceStatus){
+    protected void cacheResourceMeta(String datastoreId, Resource resourceStatus){
 
         Document resourceCache = this.datastoreSchemaClient.getDocument(resourceStatus.getId());
 
@@ -148,11 +147,12 @@ public class MetaCacheManager {
         resourceFields.put("data_size", resourceStatus.getDataSize());
         resourceFields.put("epoch", resourceStatus.getEpoch());
         resourceFields.put("mtime", resourceStatus.getMtime());
+        resourceFields.put("performance_tier", resourceStatus.getPerformanceTier());
 
         if(resourceCache == null){
             // Create the resource cache from scratch
             this.resourceSchemaClient.addDocument(resourceStatus.getId(), resourceFields);
-            updateReplicaMap(datastoreId, resourceStatus.getId(), ReplicaStatus.MASTER);
+            updateReplicaMap(datastoreId, resourceStatus.getId(), ReplicaRole.MASTER);
         } else {
             // Pass the resource update with all of the fields we're replacing.
             this.resourceSchemaClient.replaceDocument(resourceStatus.getId(), 0.5f, resourceFields);
@@ -172,33 +172,33 @@ public class MetaCacheManager {
         Document replicaMap = this.mapSchemaClient.getDocument(documentHash);
 
         if(replicaMap == null){
-            updateReplicaMap(datastoreId, resourceId, ReplicaStatus.MASTER);
+            updateReplicaMap(datastoreId, resourceId, ReplicaRole.MASTER);
             return;
         }
 
-        ReplicaStatus replicaStatus;
+        ReplicaRole replicaRole;
         if(replicaMap.getString("replica_status") == null){
-            replicaStatus = ReplicaStatus.MASTER;
+            replicaRole = ReplicaRole.MASTER;
         } else {
-            replicaStatus = ReplicaStatus.valueOf(replicaMap.getString("replica_status"));
+            replicaRole = ReplicaRole.valueOf(replicaMap.getString("replica_status"));
         }
 
 
-        if(replicaStatus.toString().equals(ReplicaStatus.MASTER.toString())){
-            updateReplicaMap(datastoreId, resourceId, replicaStatus);
+        if(replicaRole.toString().equals(ReplicaRole.MASTER.toString())){
+            updateReplicaMap(datastoreId, resourceId, replicaRole);
         } else {
-            updateReplicaMap(datastoreId, resourceId, ReplicaStatus.ACTIVE);
+            updateReplicaMap(datastoreId, resourceId, ReplicaRole.ACTIVE);
         }
     }
 
-    protected void updateReplicaMap(String datastoreId, String resourceId, ReplicaStatus replicaStatus){
+    protected void updateReplicaMap(String datastoreId, String resourceId, ReplicaRole replicaRole){
         String documentHash = calculateDocumentHashId(datastoreId, resourceId);
         Document replicaMap = this.mapSchemaClient.getDocument(documentHash);
 
         Map<String, Object> mapFields = new HashMap<>();
         mapFields.put("resource_id", resourceId);
         mapFields.put("datastore_id", datastoreId);
-        mapFields.put("replica_status", replicaStatus.toString());
+        mapFields.put("replica_status", replicaRole.toString());
         mapFields.put("last_hash", documentHash);
         mapFields.put("last_seen", Instant.now().toEpochMilli());
 
@@ -211,7 +211,7 @@ public class MetaCacheManager {
 
     // TODO: Fix. The issue was that we're trying to look up the replica by resource id when we're passing the
     protected String lookupMasterDataStoreId(String resourceId){
-        String[] matchedStores = lookupDataStoreIds(resourceId, ReplicaStatus.MASTER);
+        String[] matchedStores = lookupDataStoreIds(resourceId, ReplicaRole.MASTER);
         if(matchedStores.length == 0)
             logger.warn("No masters found!");
         if(matchedStores.length > 1)
@@ -237,7 +237,7 @@ public class MetaCacheManager {
         return null;
     }
 
-    protected String[] lookupDataStoreIds(String resourceId, ReplicaStatus replicaStatus){
+    protected String[] lookupDataStoreIds(String resourceId, ReplicaRole replicaRole){
 
         SearchResult searchResult = mapSchemaClient.search(new Query("*"));
         List<String> dataStoreIds = new ArrayList<>();
@@ -246,7 +246,7 @@ public class MetaCacheManager {
             String docResourceId = document.getString("resource_id");
             String docReplicaStatus = document.getString("replica_status");
             if(docResourceId.equals(resourceId))
-                if(docReplicaStatus.equals(replicaStatus.toString()))
+                if(docReplicaStatus.equals(replicaRole.toString()))
                     dataStoreIds.add(document.getString("datastore_id"));
         }
         if(dataStoreIds.size() > 0) {
@@ -327,14 +327,23 @@ public class MetaCacheManager {
         SORTBY 2 @available_quota DESC
         LIMIT 0 1
         */
-        AggregationRequest aggregationRequest = new AggregationRequest(String.format("@performance_tier=='%s'", performanceTier));
-        aggregationRequest
-                .load("datastore_id", "hard_quota", "used_quota", "performance_tier")
+
+        AggregationBuilder aggregationBuilder = new AggregationBuilder();
+        aggregationBuilder
+                .load("@datastore_id", "@hard_quota", "@used_quota", "@performance_tier")
+                .filter(String.format("@performance_tier=='%s'",performanceTier))
                 .apply("@hard_quota - @used_quota", "available_quota")
-                .sortByDesc("available_quota")
+                .sortByDesc("@available_quota")
                 .limit(1);
 
-        AggregationResult aggregationResult = datastoreSchemaClient.aggregate(aggregationRequest);
+        AggregationResult aggregationResult;
+        try {
+            aggregationResult = datastoreSchemaClient.aggregate(aggregationBuilder);
+        } catch(Exception error){
+            logger.error("Had error!", error);
+            return null;
+        }
+
         Row firstRow = aggregationResult.getRow(0);
         if(firstRow == null){
             logger.error("Couldn't find any datastores!");

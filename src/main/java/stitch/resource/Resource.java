@@ -1,7 +1,6 @@
 package stitch.resource;
 
 import com.google.gson.Gson;
-import stitch.datastore.DataStoreInfo;
 import stitch.util.Serializer;
 
 import java.io.*;
@@ -14,60 +13,43 @@ public class Resource implements Serializable {
 
     private static final long serialVersionUID = 1234L;
 
+    // resource_id
     private String id;
+    // created
+    private long created;
+    // mtime
+    private long mtime;
+    // epoch
+    private long epoch;
+    // last_hash
+    private String lastHash;
+    // last_seen
+    private long lastSeen;
+    // data_size
+    private long dataSize;
+    // data_type
+    private String dataType;
+    // performance_tier
+    private String performanceTier;
+    // meta_map
     private Map<String, Object> metaMap = new HashMap<>();
-    private byte[] data;
 
-    public Resource(String dataType, byte[] dataBytes){
-        this.id = UUID.randomUUID().toString().replace("-", "");
-        putMeta("created", Instant.now().toEpochMilli());
-        putMeta("data_type", dataType);
-        putMeta("data_size", dataBytes.length);
-        this.data = dataBytes;
-    }
 
-    public Resource(String id, HashMap<String, Object> metaMap, byte[] dataBytes) {
+    public Resource(){}
+    public Resource(String id, long created, long mtime, long epoch, String lastHash, long lastSeen, long dataSize, String dataType, String performanceTier, Map<String, Object> metaMap) {
         this.id = id;
+        this.created = created;
+        this.mtime = mtime;
+        this.epoch = epoch;
+        this.lastSeen = lastSeen;
+        this.lastHash = lastHash;
+        this.dataSize = dataSize;
+        this.dataType = dataType;
+        this.performanceTier = performanceTier;
         this.metaMap = metaMap;
-        this.data = dataBytes;
     }
 
-    private void incrementEpoch(){
-        long currentEpoch = getEpoch();
-        currentEpoch++;
-        this.metaMap.replace("epoch", currentEpoch);
-        this.metaMap.replace("mtime", Instant.now().toEpochMilli());
-    }
-
-    public void putMeta(String metaKey, Object metaData){
-        incrementEpoch();
-        this.metaMap.put(metaKey, metaData);
-    }
-
-    public void setData(byte[] dataBytes) {
-        incrementEpoch();
-        this.metaMap.replace("created", Instant.now().toEpochMilli());
-        this.metaMap.replace("data_size", dataBytes.length);
-        this.data = dataBytes;
-    }
-
-    public String getID(){ return this.id; }
-    public long getCreated(){ return this.getMetaLong("created"); }
-    public long getEpoch() { return getMetaLong("epoch"); }
-    public long getMtime() { return getMetaLong("mtime"); }
-    public ResourceStatus getStatus(){
-        return new ResourceStatus(id)
-                .setCreated(getCreated())
-                .setDataType(getDataType())
-                .setDataSize(getDataSize())
-                .setEpoch(getEpoch())
-                .setMtime(getMtime());
-    }
-
-    public String getDataType() { return this.getMetaString("data_type"); }
-    public long getDataSize() { return this.getMetaLong("data_size"); }
-    public long getLogicalSizeMB() { return getDataSize(); }
-    public byte[] getData(){ return this.data; }
+    // ------ Meta Map STUFF ------
     public Object getMeta(String metaKey){
         return this.metaMap.get(metaKey);
     }
@@ -83,13 +65,112 @@ public class Resource implements Serializable {
     public Map<String, Object> getMetaMap(){
         return this.metaMap;
     }
-
-    public static Resource fromByteArray(byte[] resourceBytes) throws IOException, ClassNotFoundException {
-        return (Resource) Serializer.bytesToObject(resourceBytes);
+    public Resource putMeta(String metaKey, Object metaData){
+        incrementEpoch();
+        this.metaMap.put(metaKey, metaData);
+        return this;
+    }
+    public Resource setMeta(Map<String, Object> metaMap){
+        incrementEpoch();
+        this.metaMap = metaMap;
+        return this;
     }
 
-    public static byte[] toByteArray(Resource resource) throws IOException {
-        return Serializer.objectToBytes(resource);
+
+    // ------ Resource ID STUFF ------
+    public String getId(){ return this.id; }
+    public Resource setId(String id){
+        incrementEpoch();
+        this.id = id;
+        return this;
+    }
+
+
+    // ------ Created Date STUFF ------
+    public long getCreated(){ return created; }
+    public Resource setCreated(long created){
+        incrementEpoch();
+        this.created = created;
+        return this;
+    }
+
+
+    // ------ Modified Time STUFF ------
+    public long getMtime() { return mtime; }
+    public Resource setMtime(long mtime) {
+        incrementEpoch();
+        this.mtime = mtime;
+        return this;
+    }
+
+
+    // ------ Epoch STUFF ------
+    public long getEpoch() { return epoch; }
+    public Resource setEpoch(long epoch){
+        incrementEpoch();
+        this.epoch = epoch;
+        return this;
+    }
+
+
+    // ------ Data Size STUFF ------
+    public long getDataSize() { return dataSize; }
+    public Resource setDataSize(long dataSize) {
+        incrementEpoch();
+        this.dataSize = dataSize;
+        return this;
+    }
+
+
+    // ------ Last Hash STUFF ------
+    public String getLastHash(){ return lastHash; }
+    public Resource setLastHash(String lastHash){
+        this.lastHash = lastHash;
+        return this;
+    }
+
+
+    // ------ Last Seen STUFF ------
+    public long getLastSeen() { return lastSeen; }
+    public Resource setLastSeen(long lastSeen){
+        this.lastSeen = lastSeen;
+        return this;
+    }
+
+
+    // ------ Data Type STUFF ------
+    public String getDataType() { return dataType; }
+    public Resource setDataType(String dataType){
+        incrementEpoch();
+        this.dataType = dataType;
+        return this;
+    }
+
+
+    // ------ Performance Tier STUFF ------
+    public String getPerformanceTier(){ return performanceTier; }
+    public Resource setPerformanceTier(String performanceTier){
+        incrementEpoch();
+        this.performanceTier = performanceTier;
+        return this;
+    }
+
+
+    private void incrementEpoch(){
+        long currentEpoch = getEpoch();
+        currentEpoch++;
+        this.metaMap.replace("epoch", currentEpoch);
+        this.metaMap.replace("mtime", Instant.now().toEpochMilli());
+    }
+
+    public static Resource newResource(long dataSize, String dataType, String performanceTier, Map<String, Object> metaMap){
+        return new Resource()
+                .setId(UUID.randomUUID().toString().replace("-", ""))
+                .setCreated(Instant.now().toEpochMilli())
+                .setDataSize(dataSize)
+                .setDataType(dataType)
+                .setPerformanceTier(performanceTier)
+                .setMeta(metaMap);
     }
 
     public static String toJson(Resource resource){
@@ -97,8 +178,11 @@ public class Resource implements Serializable {
         return gson.toJson(resource);
     }
 
+
     public static Resource fromJson(String resourceJson){
         Gson gson = new Gson();
         return gson.fromJson(resourceJson, Resource.class);
     }
+
+
 }
