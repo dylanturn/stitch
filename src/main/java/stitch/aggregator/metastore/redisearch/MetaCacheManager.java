@@ -315,19 +315,6 @@ public class MetaCacheManager {
     }
 
     protected DataStoreInfo getLeastUsedDatastore(String performanceTier){
-
-        /*
-        #######
-        # The query used
-        #######
-        FT.AGGREGATE datastore_meta "*"
-        LOAD 4 @datastore_id @hard_quota @used_quota @performance_tier
-        FILTER "@performance_tier=='general'"
-        APPLY "@hard_quota - @used_quota" AS available_quota
-        SORTBY 2 @available_quota DESC
-        LIMIT 0 1
-        */
-
         AggregationBuilder aggregationBuilder = new AggregationBuilder();
         aggregationBuilder
                 .load("@datastore_id", "@hard_quota", "@used_quota", "@performance_tier")

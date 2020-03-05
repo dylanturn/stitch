@@ -3,7 +3,9 @@ package stitch.datastore.mongo;
 import com.mongodb.*;
 import com.mongodb.MongoClient;
 import com.mongodb.client.*;
+import com.mongodb.client.result.UpdateResult;
 import org.apache.log4j.Logger;
+import org.bson.BsonDocument;
 import org.bson.Document;
 import org.bson.types.Binary;
 import stitch.datastore.DataStoreServer;
@@ -11,13 +13,11 @@ import stitch.resource.Resource;
 import stitch.resource.ResourceRequest;
 import stitch.util.configuration.item.ConfigItem;
 
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-
-import static com.mongodb.client.model.Projections.fields;
-import static com.mongodb.client.model.Projections.include;
 
 public class MongoDataStoreServer extends DataStoreServer {
 
@@ -61,38 +61,12 @@ public class MongoDataStoreServer extends DataStoreServer {
         }
     }
 
-
-    /*
-        // resource_id
-    private String id;
-    // created
-    private long created;
-    // mtime
-    private long mtime;
-    // epoch
-    private long epoch;
-    // last_hash
-    private String lastHash;
-    // last_seen
-    private long lastSeen;
-    // data_size
-    private long dataSize;
-    // data_type
-    private String dataType;
-    // performance_tier
-    private String performanceTier;
-    // meta_map
-    private Map<String, Object> metaMap = new HashMap<>();
-     */
-
     private static Document fromResource(Resource resource){
         Document document = new Document();
         document.put("resource_id", resource.getId());
         document.put("created", resource.getCreated());
         document.put("mtime", resource.getMtime());
         document.put("epoch", resource.getEpoch());
-        document.put("last_hash", resource.getLastHash());
-        document.put("last_seen", resource.getLastSeen());
         document.put("data_size", resource.getDataSize());
         document.put("data_type", resource.getDataType());
         document.put("performance_tier", resource.getPerformanceTier());
@@ -108,8 +82,6 @@ public class MongoDataStoreServer extends DataStoreServer {
                 document.getLong("created"),
                 document.getLong("mtime"),
                 document.getLong("epoch"),
-                document.getString("last_hash"),
-                document.getLong("last_seen"),
                 document.getLong("data_size"),
                 document.getString("data_type"),
                 document.getString("performance_tier"),
@@ -160,15 +132,31 @@ public class MongoDataStoreServer extends DataStoreServer {
     public boolean updateResource(Resource resource) {
         logger.trace(String.format("Updating resource: %s", resource.getId()));
         BasicDBObject query = new BasicDBObject();
-        query.put("uuid", resource.getId());
+        query.put("resource_id", resource.getId());
         return mongoCollection.updateOne(query, fromResource(resource)).wasAcknowledged();
+    }
+
+    @Override
+    public boolean updateResource(String resourceId, ResourceRequest resourceRequest) throws Exception {
+        logger.trace(String.format("Updating resource: %s", resourceId));
+        BasicDBObject query = new BasicDBObject();
+        // Get the resource we want to update.
+        Resource resource = getResource(resourceId);
+        if(resourceRequest.getEpoch() == resource.getEpoch()) {
+            resource = resource.updateResource(resourceRequest);
+            System.out.println(Resource.toJson(resource));
+            query.put("resource_id", resourceId);
+            return mongoCollection.replaceOne(query, fromResource(resource)).wasAcknowledged();
+        } else {
+            return false;
+        }
     }
 
     @Override
     public Resource getResource(String resourceId) {
         logger.trace(String.format("Getting resource: %s", resourceId));
         BasicDBObject query = new BasicDBObject();
-        query.put("uuid", resourceId);
+        query.put("resource_id", resourceId);
         Document resourceObject = mongoCollection.find(query).first();
         return toResource(resourceObject);
     }
@@ -177,7 +165,7 @@ public class MongoDataStoreServer extends DataStoreServer {
     public boolean deleteResource(String resourceId) {
         logger.trace(String.format("Deleting resource: %s", resourceId));
         BasicDBObject query = new BasicDBObject();
-        query.put("uuid", resourceId);
+        query.put("resource_id", resourceId);
         return mongoCollection.deleteOne(query).wasAcknowledged();
     }
 
@@ -203,9 +191,26 @@ public class MongoDataStoreServer extends DataStoreServer {
     public byte[] readData(String resourceId) {
         logger.trace(String.format("Getting resource: %s", resourceId));
         BasicDBObject query = new BasicDBObject();
-        query.put("uuid", resourceId);
+        query.put("resource_id", resourceId);
         Document resourceObject = mongoCollection.find(query).first();
         return resourceObject.get("data", Binary.class).getData();
+    }
+
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes) throws UnsupportedEncodingException {
+        BasicDBObject query = new BasicDBObject();
+        query.put("resource_id", resourceId);
+        String updateQuery = String.format("{ $set: { data: \"%s\" } }", new String(dataBytes, "utf-8"));
+        UpdateResult updateResult = mongoCollection.updateOne(query, BsonDocument.parse(updateQuery));
+
+        if(updateResult.wasAcknowledged())
+            return dataBytes.length;
+        return 0;
+    }
+
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes, long offset) {
+        return 0;
     }
 
     public byte[] readData(String resourceId, long offset, long length){

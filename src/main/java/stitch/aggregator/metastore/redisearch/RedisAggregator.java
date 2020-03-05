@@ -3,8 +3,8 @@ package stitch.aggregator.metastore.redisearch;
 import io.redisearch.*;
 import org.apache.log4j.Logger;
 
-import stitch.aggregator.Aggregator;
 import stitch.aggregator.AggregatorServer;
+import stitch.aggregator.metastore.DataStoreNotFoundException;
 import stitch.aggregator.metastore.MetaStore;
 import stitch.datastore.DataStoreInfo;
 import stitch.datastore.DataStoreStatus;
@@ -78,6 +78,19 @@ public class RedisAggregator implements MetaStore {
         return false;
     }
 
+    @Override
+    public boolean updateResource(String resourceId, ResourceRequest resourceRequest) throws Exception {
+        try {
+            if (aggregatorServer.getDataStoreClient(getResourceStoreById(resourceId)).updateResource(resourceId, resourceRequest)) {
+                return true;
+            }
+        }catch (Exception error){
+            logger.error("Encountered failure while updating resource. Resource will be removed from cache.", error);
+            metaCacheManager.getResourceClient().deleteDocument(resourceId);
+        }
+        return false;
+    }
+
     // TODO: Implement this!
     @Override
     public boolean deleteResource(String resourceId) {
@@ -99,7 +112,7 @@ public class RedisAggregator implements MetaStore {
             ArrayList<Resource> resourceList = new ArrayList<>();
             for (Document document : metaCacheManager.getResourceClient().search(new Query(filter)).docs) {
                 resourceList.add(aggregatorServer.getDataStoreClient(document.getString("datastore_id"))
-                        .getResource(document.getString("uuid")));
+                        .getResource(document.getString("resource_id")));
             }
             return resourceList;
         } catch (Exception error){
@@ -109,22 +122,24 @@ public class RedisAggregator implements MetaStore {
     }
 
     @Override
-    public byte[] readData(String resourceId) {
+    public byte[] readData(String resourceId) throws DataStoreNotFoundException {
+        return aggregatorServer.getDataStoreClient(getResourceStoreById(resourceId)).readData(resourceId);
+    }
+
+    @Override
+    public byte[] readData(String resourceId, long offset, long length) {
         return new byte[0];
     }
 
-    /*
-    document.getString("resource_id"),
-    document.getLong("created"),
-    document.getLong("mtime"),
-    document.getLong("epoch"),
-    document.getString("last_hash"),
-    document.getLong("last_seen"),
-    document.getLong("data_size"),
-    document.getString("data_type"),
-    document.getString("performance_tier"),
-    document.get("meta_map", Document.class)
-     */
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes) throws DataStoreNotFoundException {
+        return aggregatorServer.getDataStoreClient(getResourceStoreById(resourceId)).writeData(resourceId, dataBytes);
+    }
+
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes, long offset) {
+        return 0;
+    }
 
     @Override
     public ArrayList<Resource> listResources() {
@@ -143,8 +158,6 @@ public class RedisAggregator implements MetaStore {
                     Long.parseLong(document.getString("created")),
                     Long.parseLong(document.getString("mtime")),
                     Long.parseLong(document.getString("epoch")),
-                    document.getString("last_hash"),
-                    Long.parseLong(document.getString("last_seen")),
                     Long.parseLong(document.getString("data_size")),
                     document.getString("data_type"),
                     document.getString("performance_tier"),
@@ -156,8 +169,11 @@ public class RedisAggregator implements MetaStore {
         return resourceList;
     }
 
-    public String getResourceStoreById(String resourceId) {
-        return metaCacheManager.lookupMasterDataStoreId(resourceId);
+    public String getResourceStoreById(String resourceId) throws DataStoreNotFoundException {
+        String storeId = metaCacheManager.lookupMasterDataStoreId(resourceId);
+        if(storeId == null)
+            throw new DataStoreNotFoundException(storeId);
+        return storeId;
     }
 
     @Override

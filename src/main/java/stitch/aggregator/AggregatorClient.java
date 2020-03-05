@@ -69,6 +69,19 @@ public class AggregatorClient implements MetaStore, ResourceStore {
     }
 
     @Override
+    public boolean updateResource(String resourceId, ResourceRequest resourceRequest) throws Exception {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "updateResource")
+                .putStringArg(resourceId)
+                .putArg(ResourceRequest.class, resourceRequest);
+        try {
+            return (boolean) rpcClient.invokeRPC(rpcRequest).getResponseObject();
+        } catch(Exception error){
+            logger.error("Failed to update the resource: " + resourceId, error);
+            return false;
+        }
+    }
+
+    @Override
     public Resource getResource(String resourceId) {
         RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "getResource")
                .putStringArg(resourceId);
@@ -114,6 +127,21 @@ public class AggregatorClient implements MetaStore, ResourceStore {
             logger.error("Failed to read resource!", error);
             return null;
         }
+    }
+
+    @Override
+    public byte[] readData(String resourceId, long offset, long length) {
+        return new byte[0];
+    }
+
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes) {
+        return 0;
+    }
+
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes, long offset) {
+        return 0;
     }
 
     @Override

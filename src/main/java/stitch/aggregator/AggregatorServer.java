@@ -3,8 +3,6 @@ package stitch.aggregator;
 import org.apache.log4j.Logger;
 import stitch.aggregator.metastore.MetaStore;
 import stitch.datastore.DataStoreClient;
-import stitch.resource.ResourceRequest;
-import stitch.resource.ResourceStore;
 import stitch.transport.TransportCallableServer;
 import stitch.rpc.RpcRequestHandler;
 import stitch.transport.TransportFactory;
@@ -15,11 +13,10 @@ import stitch.util.configuration.store.ConfigStore;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 
-public class AggregatorServer implements ResourceStore, Runnable {
+public class AggregatorServer implements Runnable {
 
     static final Logger logger = Logger.getLogger(AggregatorServer.class);
 
@@ -99,49 +96,5 @@ public class AggregatorServer implements ResourceStore, Runnable {
         } catch (InvocationTargetException e) {
             e.printStackTrace();
         }
-    }
-
-    @Override
-    public String createResource(String performanceTier, long dataSize, String dataType, Map<String, Object> metaMap) throws Exception {
-        return null;
-    }
-
-    @Override
-    public String createResource(ResourceRequest resourceRequest) throws Exception {
-        return this.createResource(
-                resourceRequest.getPerformanceTier(),
-                resourceRequest.getDataSize(),
-                resourceRequest.getDataType(),
-                resourceRequest.getMetaMap());
-    }
-
-    @Override
-    public boolean updateResource(stitch.resource.Resource resource) throws Exception {
-        return false;
-    }
-
-    @Override
-    public stitch.resource.Resource getResource(String resourceId) throws Exception {
-        return null;
-    }
-
-    @Override
-    public boolean deleteResource(String resourceId) throws Exception {
-        return false;
-    }
-
-    @Override
-    public List<stitch.resource.Resource> listResources() {
-        return null;
-    }
-
-    @Override
-    public List<stitch.resource.Resource> findResources(String filter) {
-        return null;
-    }
-
-    @Override
-    public byte[] readData(String resourceId) {
-        return new byte[0];
     }
 }

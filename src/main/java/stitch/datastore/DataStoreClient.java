@@ -55,6 +55,14 @@ public class DataStoreClient implements DataStore, ResourceStore {
     }
 
     @Override
+    public boolean updateResource(String resourceId, ResourceRequest resourceRequest) throws Exception {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "updateResource")
+                .putStringArg(resourceId)
+                .putArg(ResourceRequest.class, resourceRequest);
+        return (boolean)rpcClient.invokeRPC(rpcRequest).getResponseObject();
+    }
+
+    @Override
     public Resource getResource(String resourceId) throws Exception {
         RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "getResource")
                 .putStringArg(resourceId);
@@ -97,6 +105,21 @@ public class DataStoreClient implements DataStore, ResourceStore {
             logger.error(String.format("Failed to read data from %s", resourceId), error);
             return null;
         }
+    }
+
+    @Override
+    public byte[] readData(String resourceId, long offset, long length) {
+        return new byte[0];
+    }
+
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes) {
+        return 0;
+    }
+
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes, long offset) {
+        return 0;
     }
 
     @Override

@@ -22,7 +22,7 @@ public class StatusReporter {
 
         // TODO: Add endpoing to stop or restart the datastore
 
-        get("/api/v1/health", (request, response) -> {
+        /*get("/api/v1/health", (request, response) -> {
             response.type("application/json");
 
             boolean datastoreAlive = dataStoreServer.isAlive();
@@ -67,7 +67,7 @@ public class StatusReporter {
 
             return String.format("{ \"datastore_ready\": \"%s\" }",
                     datastoreReady);
-        });
+        });*/
 
     }
 
