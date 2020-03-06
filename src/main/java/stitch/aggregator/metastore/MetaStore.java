@@ -2,7 +2,7 @@ package stitch.aggregator.metastore;
 
 import stitch.datastore.DataStoreInfo;
 import stitch.datastore.DataStoreStatus;
-import stitch.resource.ResourceStore;
+import stitch.datastore.resource.ResourceStore;
 
 import java.io.IOException;
 

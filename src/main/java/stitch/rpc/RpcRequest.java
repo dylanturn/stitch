@@ -1,6 +1,6 @@
 package stitch.rpc;
 
-import stitch.resource.Resource;
+import stitch.datastore.resource.Resource;
 import stitch.transport.TransmitMode;
 import stitch.util.Serializer;
 

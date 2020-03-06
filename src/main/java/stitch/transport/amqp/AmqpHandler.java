@@ -4,10 +4,7 @@ import com.rabbitmq.client.*;
 import org.apache.log4j.Logger;
 import stitch.rpc.RpcRequest;
 import stitch.rpc.RpcResponse;
-import stitch.rpc.RpcRequestHandler;
 import stitch.transport.TransportHandler;
-import stitch.util.configuration.item.ConfigItem;
-import stitch.util.configuration.item.ConfigItemType;
 
 import java.io.IOException;
 

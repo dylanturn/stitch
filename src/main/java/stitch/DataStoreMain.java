@@ -4,7 +4,6 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import org.apache.log4j.Logger;
 import org.slf4j.LoggerFactory;
-import stitch.datastore.DataStoreFactory;
 import stitch.datastore.DataStoreServer;
 import stitch.util.configuration.item.ConfigItem;
 import stitch.util.configuration.item.ConfigItemType;
@@ -25,7 +24,7 @@ public class DataStoreMain {
         ((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger("org.mongodb.driver").setLevel(Level.ERROR);
         ConfigStore configStore = ConfigStore.loadConfigStore();
 
-        // Get the id of the DataStore we'd like to start.
+        // Get the id of the ResourceStoreProvider we'd like to start.
         String dataStoreId = null;
         for(int i = 0; i < args.length; i++) {
             if(args[i].equals("--id")){
@@ -35,12 +34,12 @@ public class DataStoreMain {
         }
 
         if(dataStoreId == null) {
-            // Create an instance of each DataStore.
+            // Create an instance of each ResourceStoreProvider.
             for (ConfigItem configItem : configStore.listConfigByItemType(ConfigItemType.DATASTORE)) {
                 startDataStoreServer(configItem);
             }
         } else {
-            logger.info("Starting DataStore with Id: " + dataStoreId);
+            logger.info("Starting ResourceStoreProvider with Id: " + dataStoreId);
             startDataStoreServer(ConfigStore.loadConfigStore().getConfigItemById(dataStoreId));
         }
 
@@ -50,11 +49,11 @@ public class DataStoreMain {
         }
     }
     private static void startDataStoreServer(ConfigItem endpoingConfig) throws ClassNotFoundException, InvocationTargetException, InstantiationException, NoSuchMethodException, IllegalAccessException {
-        DataStoreServer dataStore = DataStoreFactory.createDataStore(endpoingConfig);
+        DataStoreServer dataStore = new DataStoreServer(endpoingConfig);
         Thread providerThread = new Thread(dataStore);
         providerThreads.put(endpoingConfig.getConfigId(), providerThread);
         providerHash.put(endpoingConfig.getConfigId(), dataStore);
         providerThread.start();
-        logger.info("DataStore instance started!!!");
+        logger.info("ResourceStoreProvider instance started!!!");
     }
 }

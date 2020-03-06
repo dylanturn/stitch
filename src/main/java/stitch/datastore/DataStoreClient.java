@@ -1,10 +1,10 @@
 package stitch.datastore;
 
 import org.apache.log4j.Logger;
-import stitch.resource.ResourceRequest;
-import stitch.resource.ResourceStore;
+import stitch.datastore.resource.ResourceRequest;
+import stitch.datastore.resource.ResourceStore;
 import stitch.rpc.RpcRequest;
-import stitch.resource.Resource;
+import stitch.datastore.resource.Resource;
 import stitch.transport.TransportCallableClient;
 import stitch.transport.TransportFactory;
 import stitch.util.configuration.item.ConfigItem;
@@ -12,9 +12,8 @@ import stitch.util.configuration.store.ConfigStore;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.Map;
 
-public class DataStoreClient implements DataStore, ResourceStore {
+public class DataStoreClient implements ResourceStore {
 
     static final Logger logger = Logger.getLogger(DataStoreClient.class);
 
@@ -31,27 +30,10 @@ public class DataStoreClient implements DataStore, ResourceStore {
     }
 
     @Override
-    public String createResource(String performanceTier, long dataSize, String dataType, Map<String, Object> metaMap) throws Exception {
-        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "createResource")
-                .putStringArg(performanceTier)
-                .putLongArg(dataSize)
-                .putStringArg(dataType)
-                .putArg(Map.class, metaMap);
-        return (String)rpcClient.invokeRPC(rpcRequest).getResponseObject();
-    }
-
-    @Override
     public String createResource(ResourceRequest resourceRequest) throws Exception {
         RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "createResource")
                 .putArg(ResourceRequest.class, resourceRequest);
         return (String)rpcClient.invokeRPC(rpcRequest).getResponseObject();
-    }
-
-    @Override
-    public boolean updateResource(Resource resource) throws Exception {
-        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "updateResource")
-                .putResourceArg(resource);
-        return (boolean)rpcClient.invokeRPC(rpcRequest).getResponseObject();
     }
 
     @Override
@@ -114,33 +96,20 @@ public class DataStoreClient implements DataStore, ResourceStore {
 
     @Override
     public int writeData(String resourceId, byte[] dataBytes) {
-        return 0;
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "writeData")
+                .putStringArg(resourceId)
+                .putArg(byte[].class, dataBytes);
+        try{
+            return (int)rpcClient.invokeRPC(rpcRequest).getResponseObject();
+
+        } catch(Exception error){
+            logger.error(String.format("Failed to read data from %s", resourceId), error);
+            return -1;
+        }
     }
 
     @Override
     public int writeData(String resourceId, byte[] dataBytes, long offset) {
         return 0;
-    }
-
-    @Override
-    public boolean isReady() {
-        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "isReady");
-        try {
-            return (boolean) rpcClient.invokeRPC(rpcRequest).getResponseObject();
-        } catch(Exception error) {
-            logger.error("Failed to check if datastore is ready!", error);
-            return false;
-        }
-    }
-
-    @Override
-    public boolean isAlive() {
-        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "isAlive");
-        try {
-            return (boolean) rpcClient.invokeRPC(rpcRequest).getResponseObject();
-        } catch(Exception error) {
-            logger.error("Failed to check if datastore is alive!", error);
-            return false;
-        }
     }
 }

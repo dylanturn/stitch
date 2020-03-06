@@ -15,7 +15,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
-
 public class AggregatorServer implements Runnable {
 
     static final Logger logger = Logger.getLogger(AggregatorServer.class);

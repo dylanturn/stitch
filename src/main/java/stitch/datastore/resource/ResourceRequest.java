@@ -1,4 +1,4 @@
-package stitch.resource;
+package stitch.datastore.resource;
 
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;

@@ -7,7 +7,6 @@ import com.rabbitmq.client.ConnectionFactory;
 import org.apache.log4j.Logger;
 import stitch.rpc.RpcRequest;
 import stitch.rpc.RpcResponse;
-import stitch.transport.TransmitMode;
 import stitch.transport.Transport;
 import stitch.transport.TransportCallableClient;
 import stitch.util.configuration.item.ConfigItem;

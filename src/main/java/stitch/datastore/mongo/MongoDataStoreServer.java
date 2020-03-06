@@ -7,19 +7,17 @@ import com.mongodb.client.result.UpdateResult;
 import org.apache.log4j.Logger;
 import org.bson.BsonDocument;
 import org.bson.Document;
-import org.bson.types.Binary;
-import stitch.datastore.DataStoreServer;
-import stitch.resource.Resource;
-import stitch.resource.ResourceRequest;
+import stitch.datastore.resource.Resource;
+import stitch.datastore.resource.ResourceRequest;
+import stitch.datastore.resource.ResourceStoreProvider;
 import stitch.util.configuration.item.ConfigItem;
 
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-public class MongoDataStoreServer extends DataStoreServer {
+public class MongoDataStoreServer implements ResourceStoreProvider {
 
     static final Logger logger = Logger.getLogger(MongoDataStoreServer.class);
 
@@ -27,27 +25,27 @@ public class MongoDataStoreServer extends DataStoreServer {
     private MongoClient mongoClient;
     private MongoDatabase mongoDatabase;
     private MongoCollection<Document> mongoCollection;
+    private ConfigItem providerConfig;
 
-    public MongoDataStoreServer(ConfigItem dataStoreConfig) throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
-        super(dataStoreConfig);
+    public MongoDataStoreServer(ConfigItem providerConfig) throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
+        this.providerConfig = providerConfig;
+        String dsProtocol = providerConfig.getConfigString("protocol");
+        String dsHost = providerConfig.getConfigString("host");
+        int dsPort = providerConfig.getConfigInt("port");
+        String dsUsername = providerConfig.getConfigString("username");
+        String dsPassword = providerConfig.getConfigString("password");
+        String dsOptions = providerConfig.getConfigString("options");
+        String database = providerConfig.getConfigString("database");
+        String collection = providerConfig.getConfigString("collection");
 
-        String dsProtocol = endpointConfig.getConfigString("protocol");
-        String dsHost = endpointConfig.getConfigString("host");
-        int dsPort = endpointConfig.getConfigInt("port");
-        String dsUsername = endpointConfig.getConfigString("username");
-        String dsPassword = endpointConfig.getConfigString("password");
-        String dsOptions = endpointConfig.getConfigString("options");
-        String database = endpointConfig.getConfigString("database");
-        String collection = endpointConfig.getConfigString("collection");
-
-        logger.info("Start a new DataStore instance...");
-        logger.info("UUID:  " + endpointConfig.getConfigId());
-        logger.info("Class: " + endpointConfig.getConfigString("class"));
-        logger.info("Type: " + endpointConfig.getConfigString("type"));
-        logger.info("Host: " + endpointConfig.getConfigString("host"));
-        logger.info("Options: " + endpointConfig.getConfigString("options"));
-        logger.info("Database: " + endpointConfig.getConfigString("database"));
-        logger.info("Collection: " + endpointConfig.getConfigString("collection"));
+        logger.info("Start a new ResourceStoreProvider instance...");
+        logger.info("UUID:  " + providerConfig.getConfigId());
+        logger.info("Class: " + providerConfig.getConfigString("class"));
+        logger.info("Type: " + providerConfig.getConfigString("type"));
+        logger.info("Host: " + providerConfig.getConfigString("host"));
+        logger.info("Options: " + providerConfig.getConfigString("options"));
+        logger.info("Database: " + providerConfig.getConfigString("database"));
+        logger.info("Collection: " + providerConfig.getConfigString("collection"));
 
         try {
             dsURI = String.format("%s://%s:%s@%s/%s?%s", dsProtocol, dsUsername, dsPassword, dsHost, database, dsOptions);
@@ -90,30 +88,11 @@ public class MongoDataStoreServer extends DataStoreServer {
     }
 
     @Override
-    public String createResource(String performanceTier, long dataSize, String dataType, Map<String, Object> metaMap) {
-        logger.trace("Creating resource!");
-        MongoDatabase mdb = mongoClient.getDatabase(endpointConfig.getConfigString("database"));
-        MongoCollection<Document> mcol = mdb.getCollection(endpointConfig.getConfigString("collection"));
-
-        Resource resource = new Resource();
-        resource.setId(UUID.randomUUID().toString().replace("-", ""))
-                .setCreated(Instant.now().toEpochMilli())
-                .setDataSize(dataSize)
-                .setDataType(dataType)
-                .setPerformanceTier(performanceTier)
-                .setMeta(metaMap);
-
-        logger.trace(String.format("Inserting resource %s into the database...",resource.getId()));
-        mcol.insertOne(fromResource(resource));
-        return resource.getId();
-    }
-
-    @Override
     public String createResource(ResourceRequest resourceRequest) throws Exception {
 
         logger.trace("Creating resource!");
-        MongoDatabase mdb = mongoClient.getDatabase(endpointConfig.getConfigString("database"));
-        MongoCollection<Document> mcol = mdb.getCollection(endpointConfig.getConfigString("collection"));
+        MongoDatabase mdb = mongoClient.getDatabase(providerConfig.getConfigString("database"));
+        MongoCollection<Document> mcol = mdb.getCollection(providerConfig.getConfigString("collection"));
 
         Resource resource = new Resource();
         resource.setId(UUID.randomUUID().toString().replace("-", ""))
@@ -129,14 +108,6 @@ public class MongoDataStoreServer extends DataStoreServer {
     }
 
     @Override
-    public boolean updateResource(Resource resource) {
-        logger.trace(String.format("Updating resource: %s", resource.getId()));
-        BasicDBObject query = new BasicDBObject();
-        query.put("resource_id", resource.getId());
-        return mongoCollection.updateOne(query, fromResource(resource)).wasAcknowledged();
-    }
-
-    @Override
     public boolean updateResource(String resourceId, ResourceRequest resourceRequest) throws Exception {
         logger.trace(String.format("Updating resource: %s", resourceId));
         BasicDBObject query = new BasicDBObject();
@@ -144,7 +115,6 @@ public class MongoDataStoreServer extends DataStoreServer {
         Resource resource = getResource(resourceId);
         if(resourceRequest.getEpoch() == resource.getEpoch()) {
             resource = resource.updateResource(resourceRequest);
-            System.out.println(Resource.toJson(resource));
             query.put("resource_id", resourceId);
             return mongoCollection.replaceOne(query, fromResource(resource)).wasAcknowledged();
         } else {
@@ -193,16 +163,17 @@ public class MongoDataStoreServer extends DataStoreServer {
         BasicDBObject query = new BasicDBObject();
         query.put("resource_id", resourceId);
         Document resourceObject = mongoCollection.find(query).first();
-        return resourceObject.get("data", Binary.class).getData();
+        return resourceObject.get("data", String.class).getBytes();
     }
 
     @Override
-    public int writeData(String resourceId, byte[] dataBytes) throws UnsupportedEncodingException {
+    public int writeData(String resourceId, byte[] dataBytes) throws Exception {
         BasicDBObject query = new BasicDBObject();
         query.put("resource_id", resourceId);
+        Resource curResource = getResource(resourceId).incrementEpoch();
+        updateResource(resourceId, new ResourceRequest().setEpoch(curResource.getEpoch()).setDataSize(dataBytes.length));
         String updateQuery = String.format("{ $set: { data: \"%s\" } }", new String(dataBytes, "utf-8"));
         UpdateResult updateResult = mongoCollection.updateOne(query, BsonDocument.parse(updateQuery));
-
         if(updateResult.wasAcknowledged())
             return dataBytes.length;
         return 0;
@@ -221,6 +192,11 @@ public class MongoDataStoreServer extends DataStoreServer {
 
     @Override
     public boolean isReady() {
+
+        // How can we be ready if we're not even alive?!
+        if(!isAlive())
+            return false;
+
         ListCollectionsIterable<Document> mongoCollectionlist = mongoDatabase.listCollections()
                 .maxTime(60, TimeUnit.SECONDS);
 
@@ -228,6 +204,13 @@ public class MongoDataStoreServer extends DataStoreServer {
         for(Document document : mongoCollectionlist){
             return true;
         }
+        return false;
+    }
+
+    @Override
+    public boolean isAlive() {
+        if(mongoCollection != null)
+            return true;
         return false;
     }
 

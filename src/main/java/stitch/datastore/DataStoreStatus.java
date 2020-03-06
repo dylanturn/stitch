@@ -1,6 +1,6 @@
 package stitch.datastore;
 
-import stitch.resource.Resource;
+import stitch.datastore.resource.Resource;
 import stitch.util.HealthAlarm;
 
 import java.time.Instant;

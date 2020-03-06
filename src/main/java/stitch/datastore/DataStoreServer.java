@@ -2,7 +2,10 @@ package stitch.datastore;
 
 
 import org.apache.log4j.Logger;
-import stitch.resource.ResourceStore;
+import stitch.aggregator.metastore.DataStoreNotFoundException;
+import stitch.datastore.resource.Resource;
+import stitch.datastore.resource.ResourceRequest;
+import stitch.datastore.resource.ResourceStoreProvider;
 import stitch.transport.TransportCallableServer;
 import stitch.rpc.RpcRequestHandler;
 import stitch.transport.TransportFactory;
@@ -15,7 +18,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class DataStoreServer implements DataStore, ResourceStore, Runnable {
+public class DataStoreServer implements ResourceStoreProvider, Runnable {
 
     static final Logger logger = Logger.getLogger(DataStoreServer.class);
     protected ConfigItem endpointConfig;
@@ -24,7 +27,7 @@ public abstract class DataStoreServer implements DataStore, ResourceStore, Runna
     private long startTime;
     protected long usedQuota;
     protected long hardQuota;
-    private DataStore datastore;
+    private ResourceStoreProvider resourceStore;
     private int reportInterval = 5000;
 
     private List<HealthAlarm> healthAlarmList = new ArrayList<>();
@@ -38,13 +41,13 @@ public abstract class DataStoreServer implements DataStore, ResourceStore, Runna
     }
 
     private void connectDataStoreBackend() throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
-        Class<? extends DataStore> dataStoreCallableClass = endpointConfig.getConfigClass("class");
+        Class<? extends ResourceStoreProvider> dataStoreCallableClass = endpointConfig.getConfigClass("class");
         Constructor<?> dataStoreCallableClassConstructor = dataStoreCallableClass.getConstructor(ConfigItem.class);
-        this.datastore = (DataStore) dataStoreCallableClassConstructor.newInstance(endpointConfig);
+        this.resourceStore = (ResourceStoreProvider) dataStoreCallableClassConstructor.newInstance(endpointConfig);
     }
 
     private void connectRpcTransport() throws IllegalAccessException, ClassNotFoundException, InstantiationException, InvocationTargetException, NoSuchMethodException {
-        rpcServer = TransportFactory.newRpcServer(endpointConfig, new RpcRequestHandler(datastore));
+        rpcServer = TransportFactory.newRpcServer(endpointConfig, new RpcRequestHandler(resourceStore));
         new Thread(rpcServer).start();
     }
 
@@ -54,27 +57,28 @@ public abstract class DataStoreServer implements DataStore, ResourceStore, Runna
     public long getStartTime(){
         return this.startTime;
     }
-
     public String getPerformanceTier(){
         return endpointConfig.getConfigString("performance_tier");
     }
-
     public long getUsedQuota() {
         return usedQuota;
     }
-
     public long getHardQuota() {
         return hardQuota;
     }
+    public List<HealthAlarm> listAlarms(){ return healthAlarmList; }
 
-    public List<HealthAlarm> listAlarms(){
-        return healthAlarmList;
+    @Override
+    public boolean isReady() {
+        return this.resourceStore.isReady();
     }
 
     @Override
     public boolean isAlive() {
 
-        // TODO: Need to implement better livelyness checks.
+        // If the backend isn't ready then we'll just report the same thing.
+        if(!resourceStore.isReady())
+            return false;
 
         long lastReportTime = statusReporter.getLastReportRun();
 
@@ -96,7 +100,7 @@ public abstract class DataStoreServer implements DataStore, ResourceStore, Runna
         // Once the DataStoreServer has connected to the backend we can start the RPC transport.
         try {
 
-            // Do whatever needs to be done to connect to the DataStore backend.
+            // Do whatever needs to be done to connect to the ResourceStoreProvider backend.
             logger.trace("Connecting to the DataStores backend");
             connectDataStoreBackend();
 
@@ -118,5 +122,55 @@ public abstract class DataStoreServer implements DataStore, ResourceStore, Runna
         } catch (NoSuchMethodException e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public String createResource(ResourceRequest resourceRequest) throws Exception {
+        return null;
+    }
+
+    @Override
+    public Resource getResource(String resourceId) throws Exception {
+        return null;
+    }
+
+    @Override
+    public List<Resource> listResources() {
+        return null;
+    }
+
+    @Override
+    public List<Resource> findResources(String filter) {
+        return null;
+    }
+
+    @Override
+    public boolean updateResource(String resourceId, ResourceRequest resourceRequest) throws Exception {
+        return false;
+    }
+
+    @Override
+    public boolean deleteResource(String resourceId) throws Exception {
+        return false;
+    }
+
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes) throws Exception {
+        return 0;
+    }
+
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes, long offset) {
+        return 0;
+    }
+
+    @Override
+    public byte[] readData(String resourceId) throws DataStoreNotFoundException {
+        return new byte[0];
+    }
+
+    @Override
+    public byte[] readData(String resourceId, long offset, long length) {
+        return new byte[0];
     }
 }

@@ -1,29 +1,27 @@
-package stitch.aggregator.metastore.redisearch;
+package stitch.aggregator.metastore;
 
 import io.redisearch.*;
 import org.apache.log4j.Logger;
 
 import stitch.aggregator.AggregatorServer;
-import stitch.aggregator.metastore.DataStoreNotFoundException;
-import stitch.aggregator.metastore.MetaStore;
 import stitch.datastore.DataStoreInfo;
 import stitch.datastore.DataStoreStatus;
-import stitch.datastore.ReplicaRole;
-import stitch.resource.Resource;
-import stitch.resource.ResourceRequest;
+import stitch.datastore.resource.ResourceReplicaRole;
+import stitch.datastore.resource.Resource;
+import stitch.datastore.resource.ResourceRequest;
 import stitch.util.configuration.item.ConfigItem;
 
 import java.io.IOException;
 import java.util.*;
 
-public class RedisAggregator implements MetaStore {
+public class MetaCacheManager implements MetaStore {
 
-    static final Logger logger = Logger.getLogger(RedisAggregator.class);
+    static final Logger logger = Logger.getLogger(MetaCacheManager.class);
 
     private AggregatorServer aggregatorServer;
-    private MetaCacheManager metaCacheManager;
+    private MetaCacheProvider metaCacheProvider;
 
-    public RedisAggregator(AggregatorServer aggregatorServer) throws IllegalAccessException, ClassNotFoundException, InstantiationException {
+    public MetaCacheManager(AggregatorServer aggregatorServer) throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         this.aggregatorServer = aggregatorServer;
         ConfigItem aggregatorConfig = aggregatorServer.getEndpointConfig();
         String redisearchHost = aggregatorConfig.getConfigString("host");
@@ -39,7 +37,7 @@ public class RedisAggregator implements MetaStore {
         logger.debug("Port: " + redisearchPort);
         logger.debug("Index: " + redisearchIndex);
         logger.debug("PoolSize: " + redisearchPoolSize);
-        metaCacheManager = new MetaCacheManager(redisearchHost, redisearchPort);
+        metaCacheProvider = new MetaCacheProvider(redisearchHost, redisearchPort);
     }
 
     @Override
@@ -47,35 +45,15 @@ public class RedisAggregator implements MetaStore {
         try {
             return aggregatorServer.getDataStoreClient(getResourceStoreById(resourceId)).getResource(resourceId);
         } catch (Exception error){
-            metaCacheManager.getResourceClient().deleteDocument(resourceId);
+            metaCacheProvider.getResourceClient().deleteDocument(resourceId);
         }
         return null;
     }
 
     @Override
-    public String createResource(String performanceTier, long dataSize, String dataType, Map<String, Object> metaMap) throws Exception {
-        DataStoreInfo selectedStore = metaCacheManager.selectEligibleDataStore(performanceTier, dataSize);
-        return aggregatorServer.getDataStoreClient(selectedStore.getId()).createResource(performanceTier, dataSize, dataType, metaMap);
-    }
-
-    @Override
     public String createResource(ResourceRequest resourceRequest) throws Exception {
-        DataStoreInfo selectedStore = metaCacheManager.selectEligibleDataStore(resourceRequest.getPerformanceTier(), resourceRequest.getDataSize());
+        DataStoreInfo selectedStore = metaCacheProvider.selectEligibleDataStore(resourceRequest.getPerformanceTier(), resourceRequest.getDataSize());
         return aggregatorServer.getDataStoreClient(selectedStore.getId()).createResource(resourceRequest);
-    }
-
-    // TODO: Implement this!
-    @Override
-    public boolean updateResource(Resource resource) {
-        try {
-            if (aggregatorServer.getDataStoreClient(getResourceStoreById(resource.getId())).updateResource(resource)) {
-                return true;
-            }
-        }catch (Exception error){
-            logger.error("Encountered failure while updating resource. Resource will be removed from cache.", error);
-            metaCacheManager.getResourceClient().deleteDocument(resource.getId());
-        }
-        return false;
     }
 
     @Override
@@ -86,7 +64,7 @@ public class RedisAggregator implements MetaStore {
             }
         }catch (Exception error){
             logger.error("Encountered failure while updating resource. Resource will be removed from cache.", error);
-            metaCacheManager.getResourceClient().deleteDocument(resourceId);
+            metaCacheProvider.getResourceClient().deleteDocument(resourceId);
         }
         return false;
     }
@@ -96,11 +74,11 @@ public class RedisAggregator implements MetaStore {
     public boolean deleteResource(String resourceId) {
         try {
             if (aggregatorServer.getDataStoreClient(getResourceStoreById(resourceId)).deleteResource(resourceId))
-                return metaCacheManager.getResourceClient().deleteDocument(resourceId);
+                return metaCacheProvider.getResourceClient().deleteDocument(resourceId);
 
         } catch (Exception error) {
             logger.error("Encountered failure while deleting resource. Resource will be removed from cache.", error);
-            metaCacheManager.getResourceClient().deleteDocument(resourceId);
+            metaCacheProvider.getResourceClient().deleteDocument(resourceId);
         }
         return false;
     }
@@ -110,7 +88,7 @@ public class RedisAggregator implements MetaStore {
     public ArrayList<Resource> findResources(String filter) {
         try {
             ArrayList<Resource> resourceList = new ArrayList<>();
-            for (Document document : metaCacheManager.getResourceClient().search(new Query(filter)).docs) {
+            for (Document document : metaCacheProvider.getResourceClient().search(new Query(filter)).docs) {
                 resourceList.add(aggregatorServer.getDataStoreClient(document.getString("datastore_id"))
                         .getResource(document.getString("resource_id")));
             }
@@ -146,12 +124,12 @@ public class RedisAggregator implements MetaStore {
         Query query = new Query("*");
         ArrayList<Resource> resourceList = new ArrayList<>();
 
-        for(Document document : metaCacheManager.getResourceClient().search(query).docs){
+        for(Document document : metaCacheProvider.getResourceClient().search(query).docs){
             logger.info("RESOURCE FOUND");
             HashMap<String, Object> resourceMeta = new HashMap<>();
-            resourceMeta.put("master_store", metaCacheManager.lookupMasterDataStoreId(document.getString("resource_id")));
-            resourceMeta.put("active_stores", metaCacheManager.lookupDataStoreIds(document.getId(), ReplicaRole.ACTIVE));
-            resourceMeta.put("inactive_stores", metaCacheManager.lookupDataStoreIds(document.getId(), ReplicaRole.INACTIVE));
+            resourceMeta.put("master_store", metaCacheProvider.lookupMasterDataStoreId(document.getString("resource_id")));
+            resourceMeta.put("active_stores", metaCacheProvider.lookupDataStoreIds(document.getId(), ResourceReplicaRole.ACTIVE));
+            resourceMeta.put("inactive_stores", metaCacheProvider.lookupDataStoreIds(document.getId(), ResourceReplicaRole.INACTIVE));
 
             resourceList.add(new Resource(
                     document.getString("resource_id"),
@@ -170,7 +148,7 @@ public class RedisAggregator implements MetaStore {
     }
 
     public String getResourceStoreById(String resourceId) throws DataStoreNotFoundException {
-        String storeId = metaCacheManager.lookupMasterDataStoreId(resourceId);
+        String storeId = metaCacheProvider.lookupMasterDataStoreId(resourceId);
         if(storeId == null)
             throw new DataStoreNotFoundException(storeId);
         return storeId;
@@ -178,13 +156,13 @@ public class RedisAggregator implements MetaStore {
 
     @Override
     public DataStoreInfo getDatastore(String datastoreId) {
-        return metaCacheManager.getDataStoreInfo(datastoreId);
+        return metaCacheProvider.getDataStoreInfo(datastoreId);
     }
 
     @Override
     public DataStoreInfo[] listDataStores() {
         ArrayList<DataStoreInfo> datastoreList = new ArrayList<>();
-        for(Document document : metaCacheManager.getDatastoreClient().search(new Query("*")).docs){
+        for(Document document : metaCacheProvider.getDatastoreClient().search(new Query("*")).docs){
             DataStoreInfo dataStoreInfo = new DataStoreInfo(document.getString("datastore_id"))
                     .setPerformanceTier(document.getString("performance_tier"))
                     .setInstanceClass(document.getString("instance_class"))
@@ -199,14 +177,14 @@ public class RedisAggregator implements MetaStore {
 
     @Override
     public DataStoreInfo[] findDataStores(String query) {
-        return metaCacheManager.searchDatastores(query);
+        return metaCacheProvider.searchDatastores(query);
     }
 
     @Override
     public void reportDataStoreStatus(DataStoreStatus dataStoreStatus) throws IOException, InterruptedException {
-        metaCacheManager.cacheDataStoreMeta(dataStoreStatus);
+        metaCacheProvider.cacheDataStoreMeta(dataStoreStatus);
         for(Resource resourceStatus : dataStoreStatus.getResources()){
-            metaCacheManager.cacheResourceMeta(dataStoreStatus.getId(), resourceStatus);
+            metaCacheProvider.cacheResourceMeta(dataStoreStatus.getId(), resourceStatus);
         }
     }
 }

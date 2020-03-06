@@ -1,28 +1,27 @@
-package stitch.aggregator.metastore.redisearch;
+package stitch.aggregator.metastore;
 
 import io.redisearch.*;
 import io.redisearch.aggregation.AggregationBuilder;
-import io.redisearch.aggregation.AggregationRequest;
 import io.redisearch.aggregation.Row;
 import io.redisearch.client.Client;
 import org.apache.log4j.Logger;
 import stitch.datastore.DataStoreInfo;
 import stitch.datastore.DataStoreStatus;
-import stitch.datastore.ReplicaRole;
-import stitch.resource.Resource;
+import stitch.datastore.resource.ResourceReplicaRole;
+import stitch.datastore.resource.Resource;
 
 import java.time.Instant;
 import java.util.*;
 
-public class MetaCacheManager {
+public class MetaCacheProvider {
 
-    static final Logger logger = Logger.getLogger(MetaCacheManager.class);
+    static final Logger logger = Logger.getLogger(MetaCacheProvider.class);
 
     private Client resourceSchemaClient;
     private Client datastoreSchemaClient;
     private Client mapSchemaClient;
 
-    public MetaCacheManager(String redisearchHost, int redisearchPort){
+    public MetaCacheProvider(String redisearchHost, int redisearchPort){
         this.resourceSchemaClient = initializeResourceSchema(redisearchHost, redisearchPort);
         this.datastoreSchemaClient = connectDataStoreSchema(redisearchHost, redisearchPort);
         this.mapSchemaClient = connectMapSchema(redisearchHost, redisearchPort);
@@ -152,7 +151,7 @@ public class MetaCacheManager {
         if(resourceCache == null){
             // Create the resource cache from scratch
             this.resourceSchemaClient.addDocument(resourceStatus.getId(), resourceFields);
-            updateReplicaMap(datastoreId, resourceStatus.getId(), ReplicaRole.MASTER);
+            updateReplicaMap(datastoreId, resourceStatus.getId(), ResourceReplicaRole.MASTER);
         } else {
             // Pass the resource update with all of the fields we're replacing.
             this.resourceSchemaClient.replaceDocument(resourceStatus.getId(), 0.5f, resourceFields);
@@ -172,33 +171,33 @@ public class MetaCacheManager {
         Document replicaMap = this.mapSchemaClient.getDocument(documentHash);
 
         if(replicaMap == null){
-            updateReplicaMap(datastoreId, resourceId, ReplicaRole.MASTER);
+            updateReplicaMap(datastoreId, resourceId, ResourceReplicaRole.MASTER);
             return;
         }
 
-        ReplicaRole replicaRole;
+        ResourceReplicaRole resourceReplicaRole;
         if(replicaMap.getString("replica_status") == null){
-            replicaRole = ReplicaRole.MASTER;
+            resourceReplicaRole = ResourceReplicaRole.MASTER;
         } else {
-            replicaRole = ReplicaRole.valueOf(replicaMap.getString("replica_status"));
+            resourceReplicaRole = ResourceReplicaRole.valueOf(replicaMap.getString("replica_status"));
         }
 
 
-        if(replicaRole.toString().equals(ReplicaRole.MASTER.toString())){
-            updateReplicaMap(datastoreId, resourceId, replicaRole);
+        if(resourceReplicaRole.toString().equals(ResourceReplicaRole.MASTER.toString())){
+            updateReplicaMap(datastoreId, resourceId, resourceReplicaRole);
         } else {
-            updateReplicaMap(datastoreId, resourceId, ReplicaRole.ACTIVE);
+            updateReplicaMap(datastoreId, resourceId, ResourceReplicaRole.ACTIVE);
         }
     }
 
-    protected void updateReplicaMap(String datastoreId, String resourceId, ReplicaRole replicaRole){
+    protected void updateReplicaMap(String datastoreId, String resourceId, ResourceReplicaRole resourceReplicaRole){
         String documentHash = calculateDocumentHashId(datastoreId, resourceId);
         Document replicaMap = this.mapSchemaClient.getDocument(documentHash);
 
         Map<String, Object> mapFields = new HashMap<>();
         mapFields.put("resource_id", resourceId);
         mapFields.put("datastore_id", datastoreId);
-        mapFields.put("replica_status", replicaRole.toString());
+        mapFields.put("replica_status", resourceReplicaRole.toString());
         mapFields.put("last_hash", documentHash);
         mapFields.put("last_seen", Instant.now().toEpochMilli());
 
@@ -211,7 +210,7 @@ public class MetaCacheManager {
 
     // TODO: Fix. The issue was that we're trying to look up the replica by resource id when we're passing the
     protected String lookupMasterDataStoreId(String resourceId){
-        String[] matchedStores = lookupDataStoreIds(resourceId, ReplicaRole.MASTER);
+        String[] matchedStores = lookupDataStoreIds(resourceId, ResourceReplicaRole.MASTER);
         if(matchedStores.length == 0)
             logger.warn("No masters found!");
         if(matchedStores.length > 1)
@@ -237,7 +236,7 @@ public class MetaCacheManager {
         return null;
     }
 
-    protected String[] lookupDataStoreIds(String resourceId, ReplicaRole replicaRole){
+    protected String[] lookupDataStoreIds(String resourceId, ResourceReplicaRole resourceReplicaRole){
 
         SearchResult searchResult = mapSchemaClient.search(new Query("*"));
         List<String> dataStoreIds = new ArrayList<>();
@@ -246,7 +245,7 @@ public class MetaCacheManager {
             String docResourceId = document.getString("resource_id");
             String docReplicaStatus = document.getString("replica_status");
             if(docResourceId.equals(resourceId))
-                if(docReplicaStatus.equals(replicaRole.toString()))
+                if(docReplicaStatus.equals(resourceReplicaRole.toString()))
                     dataStoreIds.add(document.getString("datastore_id"));
         }
         if(dataStoreIds.size() > 0) {
@@ -287,7 +286,6 @@ public class MetaCacheManager {
             DataStoreInfo[] dataStoreInfos = new DataStoreInfo[resultSetSize];
             for(int i=0; i < resultSetSize; i++){
 
-                //Map<String, Object> result = results.get(i);
                 String datastoreId = aggregationResult.getRow(i).getString("datastore_id");
                 String performanceTier = aggregationResult.getRow(i).getString("performance_tier");
                 String instanceClass = aggregationResult.getRow(i).getString("instance_class");

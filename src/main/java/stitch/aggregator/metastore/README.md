@@ -1,4 +1,10 @@
-# Stitch MetaStore Schema
+# Stitch MetaStore
+
+#####MetaStoreManager
+Responsible for metastore logic
+
+#####MetaStoreProvider 
+Responsible for interacting with the metastore backend (Redisearch)
 
 ##### Resource MetaData Schema
     String  resource_id
@@ -24,7 +30,7 @@
 ##### Resource MetaData Schema
     String  resource_id
     String  datastore_id
-    String  replicaRole
+    String  resourceReplicaRole
     Integer last_hash
     Long    last_seen
     

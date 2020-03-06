@@ -6,8 +6,8 @@ import com.google.gson.Gson;
 import org.slf4j.LoggerFactory;
 import stitch.aggregator.metastore.MetaStore;
 import stitch.datastore.DataStoreInfo;
-import stitch.resource.Resource;
-import stitch.resource.ResourceRequest;
+import stitch.datastore.resource.Resource;
+import stitch.datastore.resource.ResourceRequest;
 
 import java.util.List;
 
@@ -114,6 +114,17 @@ public class AggregatorAPI {
             response.type("application/json");
             int dataWritten = metaStore.writeData(request.params(":resource_id"), request.bodyAsBytes());
             return String.format("{\"data_written\": %s}", dataWritten);
+        });
+        delete("/api/v1/resource/:resource_id", (request, response) -> {
+            response.type("application/json");
+            boolean resourceDeleted = metaStore.deleteResource(request.params(":resource_id"));
+            if(resourceDeleted) {
+                response.status(204);
+                return "";
+            } else {
+                response.status(500);
+                return "";
+            }
         });
     }
 

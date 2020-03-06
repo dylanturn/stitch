@@ -4,7 +4,6 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import org.apache.log4j.Logger;
 import org.slf4j.LoggerFactory;
-import stitch.aggregator.AggregatorFactory;
 import stitch.aggregator.AggregatorServer;
 import stitch.util.configuration.item.ConfigItem;
 import stitch.util.configuration.item.ConfigItemType;
@@ -26,7 +25,7 @@ public class AggregatorMain {
 
         ConfigStore configStore = ConfigStore.loadConfigStore();
 
-        // Get the id of the DataStore we'd like to start.
+        // Get the id of the ResourceStoreProvider we'd like to start.
         String aggregatorId = null;
         for(int i = 0; i < args.length; i++) {
             if(args[i].equals("--id")){

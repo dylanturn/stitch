@@ -1,8 +1,7 @@
-package stitch.resource;
+package stitch.datastore.resource;
 
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
-import stitch.util.Serializer;
 
 import java.io.*;
 import java.time.Instant;
@@ -150,9 +149,10 @@ public class Resource implements Serializable {
         return this;
     }
 
-    private void incrementEpoch(){
+    public Resource incrementEpoch(){
         this.epoch++;
         this.mtime = Instant.now().toEpochMilli();
+        return this;
     }
 
     public static Resource newResource(long dataSize, String dataType, String performanceTier, Map<String, Object> metaMap){
