@@ -23,7 +23,7 @@ public class MetaCacheManager implements MetaStore {
 
     public MetaCacheManager(AggregatorServer aggregatorServer) throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         this.aggregatorServer = aggregatorServer;
-        ConfigItem aggregatorConfig = aggregatorServer.getEndpointConfig();
+        ConfigItem aggregatorConfig = aggregatorServer.getConfig();
         String redisearchHost = aggregatorConfig.getConfigString("host");
         int redisearchPort = aggregatorConfig.getConfigInt("port");
         String redisearchIndexPrefix = aggregatorConfig.getConfigString(("indexPrefix"));

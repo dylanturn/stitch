@@ -20,15 +20,15 @@ public class AggregatorServer implements Runnable {
     static final Logger logger = Logger.getLogger(AggregatorServer.class);
 
     private ConfigStore configStore;
-    protected ConfigItem endpointConfig;
+    protected ConfigItem config;
     protected TransportCallableServer rpcServer;
     protected HashMap<String, DataStoreClient> dataStoreClients = new HashMap<>();
     private MetaStore callableMetaStore;
     private AggregatorAPI aggregatorAPI;
 
-    public AggregatorServer(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+    public AggregatorServer(ConfigItem config) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         configStore = ConfigStore.loadConfigStore();
-        this.endpointConfig = endpointConfig;
+        this.config = config;
     }
 
     private void createCallableAggregator() throws IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchMethodException, ClassNotFoundException {
@@ -39,27 +39,29 @@ public class AggregatorServer implements Runnable {
         // Create a Map that holds all the filters we'll use to get the aggregators datastores.
         Map<String, String> filters = new HashMap<>();
         filters.put("type", ConfigItemType.DATASTORE.toString());
-        filters.put("aggregator", endpointConfig.getConfigId());
+        filters.put("aggregator", config.getConfigId());
         for(ConfigItem dataStoreConfig : configStore.getConfigItemsByAttributes(filters)){
             dataStoreClients.put(dataStoreConfig.getConfigId(), new DataStoreClient(dataStoreConfig ));
         }
     }
 
     private void connectRpcTransport() throws IllegalAccessException, ClassNotFoundException, InstantiationException, InvocationTargetException, NoSuchMethodException {
-        rpcServer = TransportFactory.newRpcServer(endpointConfig, new RpcRequestHandler(MetaStore.class, callableMetaStore));
-        new Thread(rpcServer).start();
+        rpcServer = TransportFactory.newRpcServer(config, new RpcRequestHandler(MetaStore.class, callableMetaStore));
+        Thread rpcServerThread = new Thread(rpcServer);
+        rpcServerThread.setName(config.getConfigName());
+        rpcServerThread.start();
     }
 
     public void startAggregatorAPI(){
-        aggregatorAPI = new AggregatorAPI(callableMetaStore, endpointConfig.getConfigInt("api_port"));
+        aggregatorAPI = new AggregatorAPI(callableMetaStore, config.getConfigInt("api_port"));
     }
 
 
     public DataStoreClient getDataStoreClient(String dataStoreClientId) {
         return dataStoreClients.get(dataStoreClientId);
     }
-    public ConfigItem getEndpointConfig() {
-        return endpointConfig;
+    public ConfigItem getConfig() {
+        return config;
     }
 
     @Override
@@ -82,15 +84,15 @@ public class AggregatorServer implements Runnable {
             startAggregatorAPI();
 
         } catch (IllegalAccessException e) {
-            e.printStackTrace();
+            logger.error("Access not allowed!", e);
         } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+            logger.error("Failed to find class!", e);
         } catch (InstantiationException e) {
-            e.printStackTrace();
-        } catch (NoSuchMethodException e) {
-            e.printStackTrace();
+            logger.error("Failed to instantiate object!", e);
         } catch (InvocationTargetException e) {
-            e.printStackTrace();
+            logger.error("Failed to invoke!", e);
+        } catch (NoSuchMethodException e) {
+            logger.error("No such method found!", e);
         }
     }
 }
