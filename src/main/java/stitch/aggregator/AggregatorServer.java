@@ -1,6 +1,7 @@
 package stitch.aggregator;
 
 import org.apache.log4j.Logger;
+import stitch.aggregator.metastore.MetaCacheManager;
 import stitch.aggregator.metastore.MetaStore;
 import stitch.datastore.DataStoreClient;
 import stitch.transport.TransportCallableServer;
@@ -10,7 +11,6 @@ import stitch.util.configuration.item.ConfigItem;
 import stitch.util.configuration.item.ConfigItemType;
 import stitch.util.configuration.store.ConfigStore;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,9 +32,7 @@ public class AggregatorServer implements Runnable {
     }
 
     private void createCallableAggregator() throws IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchMethodException, ClassNotFoundException {
-        Class<? extends MetaStore> metaStoreCallableClass = endpointConfig.getConfigClass("class");
-        Constructor<?> metaStoreCallableClassConstructor = metaStoreCallableClass.getConstructor(AggregatorServer.class);
-        this.callableMetaStore = (MetaStore) metaStoreCallableClassConstructor.newInstance(this);
+        callableMetaStore = new MetaCacheManager(this);
     }
 
     private void connectDataStoreClients() throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
@@ -42,7 +40,6 @@ public class AggregatorServer implements Runnable {
         Map<String, String> filters = new HashMap<>();
         filters.put("type", ConfigItemType.DATASTORE.toString());
         filters.put("aggregator", endpointConfig.getConfigId());
-
         for(ConfigItem dataStoreConfig : configStore.getConfigItemsByAttributes(filters)){
             dataStoreClients.put(dataStoreConfig.getConfigId(), new DataStoreClient(dataStoreConfig ));
         }
@@ -53,14 +50,14 @@ public class AggregatorServer implements Runnable {
         new Thread(rpcServer).start();
     }
 
+    public void startAggregatorAPI(){
+        aggregatorAPI = new AggregatorAPI(callableMetaStore, endpointConfig.getConfigInt("api_port"));
+    }
+
+
     public DataStoreClient getDataStoreClient(String dataStoreClientId) {
         return dataStoreClients.get(dataStoreClientId);
     }
-
-    public void startAggregatorAPI(){
-        aggregatorAPI = new AggregatorAPI(callableMetaStore);
-    }
-
     public ConfigItem getEndpointConfig() {
         return endpointConfig;
     }

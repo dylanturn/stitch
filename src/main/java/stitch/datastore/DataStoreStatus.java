@@ -22,7 +22,7 @@ public class DataStoreStatus extends DataStoreInfo {
         setUsedQuota(server.getUsedQuota());
         setHardQuota(server.hardQuota);
         alarmList.addAll(server.listAlarms());
-        resourceList.addAll(server.listResources());
+        resourceList.addAll(server.getResourceStoreProvider().listResources());
     }
 
     public long getReportTime() { return reportTime; }

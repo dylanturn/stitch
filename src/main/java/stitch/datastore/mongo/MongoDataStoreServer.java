@@ -29,30 +29,18 @@ public class MongoDataStoreServer implements ResourceStoreProvider {
 
     public MongoDataStoreServer(ConfigItem providerConfig) throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
         this.providerConfig = providerConfig;
-        String dsProtocol = providerConfig.getConfigString("protocol");
-        String dsHost = providerConfig.getConfigString("host");
-        int dsPort = providerConfig.getConfigInt("port");
-        String dsUsername = providerConfig.getConfigString("username");
-        String dsPassword = providerConfig.getConfigString("password");
-        String dsOptions = providerConfig.getConfigString("options");
-        String database = providerConfig.getConfigString("database");
-        String collection = providerConfig.getConfigString("collection");
-
-        logger.info("Start a new ResourceStoreProvider instance...");
-        logger.info("UUID:  " + providerConfig.getConfigId());
-        logger.info("Class: " + providerConfig.getConfigString("class"));
-        logger.info("Type: " + providerConfig.getConfigString("type"));
-        logger.info("Host: " + providerConfig.getConfigString("host"));
-        logger.info("Options: " + providerConfig.getConfigString("options"));
-        logger.info("Database: " + providerConfig.getConfigString("database"));
-        logger.info("Collection: " + providerConfig.getConfigString("collection"));
-
         try {
-            dsURI = String.format("%s://%s:%s@%s/%s?%s", dsProtocol, dsUsername, dsPassword, dsHost, database, dsOptions);
+            dsURI = String.format("%s://%s:%s@%s/%s?%s",
+                    providerConfig.getConfigString("protocol"),
+                    providerConfig.getConfigString("username"),
+                    providerConfig.getConfigString("password"),
+                    providerConfig.getConfigString("host"),
+                    providerConfig.getConfigString("database"),
+                    providerConfig.getConfigString("options"));
             MongoClientURI mongoClientURI = new MongoClientURI(dsURI);
             mongoClient = new MongoClient(mongoClientURI);
-            mongoDatabase = mongoClient.getDatabase(database);
-            this.mongoCollection = mongoDatabase.getCollection(collection);
+            mongoDatabase = mongoClient.getDatabase(providerConfig.getConfigString("database"));
+            this.mongoCollection = mongoDatabase.getCollection(providerConfig.getConfigString("collection"));
         } catch(Exception error){
             logger.error("Failed to load the collection!");
             logger.error(error);
@@ -89,33 +77,30 @@ public class MongoDataStoreServer implements ResourceStoreProvider {
 
     @Override
     public String createResource(ResourceRequest resourceRequest) throws Exception {
-
         logger.trace("Creating resource!");
         MongoDatabase mdb = mongoClient.getDatabase(providerConfig.getConfigString("database"));
         MongoCollection<Document> mcol = mdb.getCollection(providerConfig.getConfigString("collection"));
-
         Resource resource = new Resource();
-        resource.setId(UUID.randomUUID().toString().replace("-", ""))
+        resource.setId(resourceRequest.getId())
                 .setCreated(Instant.now().toEpochMilli())
                 .setDataSize(resourceRequest.getDataSize())
                 .setDataType(resourceRequest.getDataType())
                 .setPerformanceTier(resourceRequest.getPerformanceTier())
                 .setMeta(resourceRequest.getMetaMap());
-
         logger.trace(String.format("Inserting resource %s into the database...",resource.getId()));
         mcol.insertOne(fromResource(resource));
         return resource.getId();
     }
 
     @Override
-    public boolean updateResource(String resourceId, ResourceRequest resourceRequest) throws Exception {
-        logger.trace(String.format("Updating resource: %s", resourceId));
+    public boolean updateResource(ResourceRequest resourceRequest) throws Exception {
+        logger.trace(String.format("Updating resource: %s", resourceRequest.getId()));
         BasicDBObject query = new BasicDBObject();
         // Get the resource we want to update.
-        Resource resource = getResource(resourceId);
+        Resource resource = getResource(resourceRequest.getId());
         if(resourceRequest.getEpoch() == resource.getEpoch()) {
             resource = resource.updateResource(resourceRequest);
-            query.put("resource_id", resourceId);
+            query.put("resource_id", resourceRequest.getId());
             return mongoCollection.replaceOne(query, fromResource(resource)).wasAcknowledged();
         } else {
             return false;
@@ -171,7 +156,11 @@ public class MongoDataStoreServer implements ResourceStoreProvider {
         BasicDBObject query = new BasicDBObject();
         query.put("resource_id", resourceId);
         Resource curResource = getResource(resourceId).incrementEpoch();
-        updateResource(resourceId, new ResourceRequest().setEpoch(curResource.getEpoch()).setDataSize(dataBytes.length));
+        updateResource(
+                new ResourceRequest()
+                        .setId(resourceId)
+                        .setEpoch(curResource.getEpoch())
+                        .setDataSize(dataBytes.length));
         String updateQuery = String.format("{ $set: { data: \"%s\" } }", new String(dataBytes, "utf-8"));
         UpdateResult updateResult = mongoCollection.updateOne(query, BsonDocument.parse(updateQuery));
         if(updateResult.wasAcknowledged())

@@ -15,7 +15,7 @@ public interface ResourceStore {
     List<Resource> findResources(String filter);
 
     // RESOURCE UPDATE
-    boolean updateResource(String resourceId, ResourceRequest resourceRequest) throws Exception;
+    boolean updateResource(ResourceRequest resourceRequest) throws Exception;
 
     // RESOURCE DELETE
     boolean deleteResource(String resourceId) throws Exception;

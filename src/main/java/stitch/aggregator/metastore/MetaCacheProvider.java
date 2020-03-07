@@ -258,6 +258,7 @@ public class MetaCacheProvider {
 
     protected DataStoreInfo selectEligibleDataStore(String performanceTier, long blockSize){
         DataStoreInfo leastUsedDatastore = getLeastUsedDatastore(performanceTier);
+        logger.trace(String.format("Found datastore: %s",leastUsedDatastore.getId()));
         if(leastUsedDatastore.getAvailableQuota() >= blockSize ){
             return leastUsedDatastore;
         }

@@ -37,9 +37,9 @@ public class DataStoreClient implements ResourceStore {
     }
 
     @Override
-    public boolean updateResource(String resourceId, ResourceRequest resourceRequest) throws Exception {
+    public boolean updateResource(ResourceRequest resourceRequest) throws Exception {
         RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "updateResource")
-                .putStringArg(resourceId)
+                .putStringArg(resourceRequest.getId())
                 .putArg(ResourceRequest.class, resourceRequest);
         return (boolean)rpcClient.invokeRPC(rpcRequest).getResponseObject();
     }

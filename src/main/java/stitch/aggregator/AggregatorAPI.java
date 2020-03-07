@@ -17,10 +17,6 @@ public class AggregatorAPI {
 
     private MetaStore metaStore;
 
-    public AggregatorAPI(MetaStore metaStore) {
-        this(metaStore, 8080);
-    }
-
     public AggregatorAPI(MetaStore metaStore, int port){
         ((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger("org.eclipse.jetty").setLevel(Level.ERROR);
         this.metaStore = metaStore;
@@ -85,7 +81,8 @@ public class AggregatorAPI {
 
         put("/api/v1/resource/:resource_id", (request, response) -> {
             ResourceRequest resourceRequest = ResourceRequest.fromJson(request.body());
-            if(metaStore.updateResource(request.params(":resource_id"), resourceRequest)){
+            resourceRequest.setId(request.params(":resource_id"));
+            if(metaStore.updateResource(resourceRequest)){
                 response.status(204);
                 return "";
             } else {

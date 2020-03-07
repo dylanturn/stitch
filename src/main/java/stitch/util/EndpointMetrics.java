@@ -40,7 +40,7 @@ public class EndpointMetrics implements Serializable {
         startTime = Instant.now().toEpochMilli();
         this.endpointId = endpointConfig.getConfigId();
         callRecordQueue = new CircularFifoQueue<>(100);
-        //callRecordQueue = new CircularFifoQueue<>(endpointConfig.getConfigInt("reporter_queue_size"));
+        //callRecordQueue = new CircularFifoQueue<>(config.getConfigInt("reporter_queue_size"));
     }
 
     public long getStartTime() {

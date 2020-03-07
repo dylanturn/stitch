@@ -57,14 +57,14 @@ public class MetaCacheManager implements MetaStore {
     }
 
     @Override
-    public boolean updateResource(String resourceId, ResourceRequest resourceRequest) throws Exception {
+    public boolean updateResource(ResourceRequest resourceRequest) throws Exception {
         try {
-            if (aggregatorServer.getDataStoreClient(getResourceStoreById(resourceId)).updateResource(resourceId, resourceRequest)) {
+            if (aggregatorServer.getDataStoreClient(getResourceStoreById(resourceRequest.getId())).updateResource(resourceRequest)) {
                 return true;
             }
         }catch (Exception error){
             logger.error("Encountered failure while updating resource. Resource will be removed from cache.", error);
-            metaCacheProvider.getResourceClient().deleteDocument(resourceId);
+            metaCacheProvider.getResourceClient().deleteDocument(resourceRequest.getId());
         }
         return false;
     }

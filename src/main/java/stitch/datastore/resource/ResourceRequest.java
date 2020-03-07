@@ -1,6 +1,7 @@
 package stitch.datastore.resource;
 
 import com.google.gson.Gson;
+import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
 import java.io.Serializable;
@@ -11,6 +12,8 @@ public class ResourceRequest implements Serializable {
 
     private static final long serialVersionUID = 8746L;
 
+    @Expose(serialize = false, deserialize = false)
+    String id;
     @SerializedName("epoch")
     long epoch = 0;
     @SerializedName("performance_tier")
@@ -24,6 +27,7 @@ public class ResourceRequest implements Serializable {
 
     public ResourceRequest() {}
 
+    public String getId() { return id; }
     public long getEpoch(){ return epoch; }
     public String getPerformanceTier(){ return performanceTier; }
     public long getDataSize(){ return dataSize; }
@@ -33,6 +37,11 @@ public class ResourceRequest implements Serializable {
             return new HashMap<>();
         else
             return metaMap;
+    }
+
+    public ResourceRequest setId(String id){
+        this.id = id;
+        return this;
     }
 
     public ResourceRequest setEpoch(long epoch){

@@ -1,10 +1,9 @@
-package stitch;
+package stitch.datastore;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import org.apache.log4j.Logger;
 import org.slf4j.LoggerFactory;
-import stitch.datastore.DataStoreServer;
 import stitch.util.configuration.item.ConfigItem;
 import stitch.util.configuration.item.ConfigItemType;
 import stitch.util.configuration.store.ConfigStore;
@@ -16,8 +15,7 @@ import java.util.Map;
 public class DataStoreMain {
 
     private static final Logger logger = Logger.getLogger(DataStoreMain.class);
-    private static Map<String,DataStoreServer> providerHash = new HashMap<>();
-    private static Map<String,Thread> providerThreads = new HashMap<>();
+    private static Map<String,Thread> datastoreThreads = new HashMap<>();
 
     public static void main(String[] args) throws Exception {
 
@@ -48,12 +46,12 @@ public class DataStoreMain {
             Thread.sleep(5000);
         }
     }
-    private static void startDataStoreServer(ConfigItem endpoingConfig) throws ClassNotFoundException, InvocationTargetException, InstantiationException, NoSuchMethodException, IllegalAccessException {
-        DataStoreServer dataStore = new DataStoreServer(endpoingConfig);
-        Thread providerThread = new Thread(dataStore);
-        providerThreads.put(endpoingConfig.getConfigId(), providerThread);
-        providerHash.put(endpoingConfig.getConfigId(), dataStore);
-        providerThread.start();
+    private static void startDataStoreServer(ConfigItem config) throws ClassNotFoundException, InvocationTargetException, InstantiationException, NoSuchMethodException, IllegalAccessException {
+        DataStoreServer dataStore = new DataStoreServer(config);
+        Thread datastoreThread = new Thread(dataStore);
+        datastoreThread.setName(config.getConfigName());
+        datastoreThreads.put(config.getConfigId(), datastoreThread);
+        datastoreThread.start();
         logger.info("ResourceStoreProvider instance started!!!");
     }
 }

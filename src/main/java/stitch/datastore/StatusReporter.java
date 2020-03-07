@@ -1,5 +1,6 @@
 package stitch.datastore;
 
+import org.apache.log4j.Logger;
 import stitch.aggregator.AggregatorClient;
 
 import java.io.IOException;
@@ -8,9 +9,9 @@ import java.time.Instant;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import static spark.Spark.get;
-
 public class StatusReporter {
+
+    static final Logger logger = Logger.getLogger(StatusReporter.class);
 
     private Timer timer;
     private TimerTask task;
@@ -19,55 +20,6 @@ public class StatusReporter {
     public StatusReporter(DataStoreServer dataStoreServer) throws ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
         this.timer = new Timer();
         this.task = new Reporter(dataStoreServer);
-
-        // TODO: Add endpoing to stop or restart the datastore
-
-        /*get("/api/v1/health", (request, response) -> {
-            response.type("application/json");
-
-            boolean datastoreAlive = dataStoreServer.isAlive();
-            boolean datastoreReady = dataStoreServer.isReady();
-
-            if(!datastoreAlive || !datastoreReady) {
-                response.status(500);
-            } else {
-                response.status(200);
-            }
-
-            return String.format("{\"datastore_alive\": \"%s\", \"datastore_ready\": \"%s\"}",
-                    datastoreAlive,
-                    datastoreReady);
-        });
-
-        get("/api/v1/health/alive", (request, response) -> {
-            response.type("application/json");
-
-            boolean datastoreAlive = dataStoreServer.isAlive();
-
-            if(!datastoreAlive) {
-                response.status(500);
-            } else {
-                response.status(200);
-            }
-
-            return String.format("{ \"datastore_alive\": \"%s\" }",
-                    datastoreAlive);
-        });
-
-        get("/api/v1/health/ready", (request, response) -> {
-            response.type("application/json");
-
-            boolean datastoreReady = dataStoreServer.isReady();
-
-            if(!datastoreReady) {
-                response.status(500);
-            } else {
-                response.status(200);
-            }
-
-            return String.format("{ \"datastore_ready\": \"%s\" }",
-                    datastoreReady);
-        });*/
 
     }
 
@@ -84,21 +36,21 @@ public class StatusReporter {
 
         public Reporter(DataStoreServer dataStoreServer) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
             this.dataStoreServer = dataStoreServer;
-            this.aggregatorClient = new AggregatorClient(dataStoreServer.endpointConfig.getConfigString("aggregator"));
+            aggregatorClient = new AggregatorClient(dataStoreServer.config.getConfigString("aggregator"));
         }
 
         public void run()
         {
-            DataStoreStatus status = new DataStoreStatus(dataStoreServer);
             try {
+                Thread.currentThread().setName(String.format("%s-status-reporter", dataStoreServer.getName()));
+                DataStoreStatus status = new DataStoreStatus(dataStoreServer);
                 aggregatorClient.reportDataStoreStatus(status);
+                lastReportRun = Instant.now().toEpochMilli();
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.error("Caught IO Exception!", e);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                logger.error("Caught Interrupted Exception!", e);
             }
-            lastReportRun = Instant.now().toEpochMilli();
         }
     }
-
 }
