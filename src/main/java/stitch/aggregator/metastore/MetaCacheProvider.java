@@ -321,10 +321,11 @@ public class MetaCacheProvider {
                 .apply("@hard_quota - @used_quota", "available_quota")
                 .sortByDesc("@available_quota")
                 .limit(1);
-
+        logger.trace(String.format("Getting least used datastore: %s", aggregationBuilder.getArgsString()));
         AggregationResult aggregationResult;
         try {
             aggregationResult = datastoreSchemaClient.aggregate(aggregationBuilder);
+            logger.trace(String.format("Total results found: %s", aggregationResult.totalResults));
         } catch(Exception error){
             logger.error("Had error!", error);
             return null;

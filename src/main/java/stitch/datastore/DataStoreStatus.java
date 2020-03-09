@@ -18,11 +18,11 @@ public class DataStoreStatus extends DataStoreInfo {
         reportTime = Instant.now().toEpochMilli();
         setId(server.getId());
         setStartTime(server.getStartTime());
-        setPerformanceTier(server.getPerformanceTier());
-        setUsedQuota(server.getUsedQuota());
-        setHardQuota(server.hardQuota);
+        setPerformanceTier(server.getResourceManager().getPerformanceTier());
+        setUsedQuota(server.getResourceManager().getUsedQuota());
+        setHardQuota(server.getResourceManager().getHardQuota());
         alarmList.addAll(server.listAlarms());
-        resourceList.addAll(server.getResourceStoreProvider().listResources());
+        resourceList.addAll(server.getResourceManager().listResources());
     }
 
     public long getReportTime() { return reportTime; }

@@ -3,7 +3,6 @@ package stitch.datastore;
 
 import org.apache.log4j.Logger;
 import stitch.datastore.resource.ResourceManager;
-import stitch.datastore.resource.ResourceStoreProvider;
 import stitch.transport.TransportCallableServer;
 import stitch.rpc.RpcRequestHandler;
 import stitch.transport.TransportFactory;
@@ -19,31 +18,35 @@ public class DataStoreServer implements Runnable {
 
     static final Logger logger = Logger.getLogger(DataStoreServer.class);
 
-    protected ConfigItem config;
-    private ResourceStoreProvider resourceStoreProvider;
-    protected TransportCallableServer rpcServer;
-    private StatusReporter statusReporter;
-    private DataStoreAPI dataStoreAPI;
+    ConfigItem config;
+    ResourceManager resourceManager;
+    TransportCallableServer rpcServer;
 
-    private long startTime;
-    protected long usedQuota;
-    protected long hardQuota;
-    private int reportInterval = 5000;
-    private List<HealthAlarm> healthAlarmList = new ArrayList<>();
+    StatusReporter statusReporter;
+    DataStoreAPI dataStoreAPI;
+    int reportInterval = 5000;
+    long startTime;
+    List<HealthAlarm> healthAlarmList = new ArrayList<>();
 
     public DataStoreServer(ConfigItem config) throws IllegalAccessException, InstantiationException, ClassNotFoundException, InvocationTargetException, NoSuchMethodException {
         this.config = config;
-        hardQuota = config.getConfigLong("hard_quota");
-        usedQuota = config.getConfigLong("used_quota");
         startTime = Instant.now().toEpochMilli();
     }
 
+    public  String getName() {return config.getConfigName(); }
+    public String getId() { return config.getConfigId(); }
+    public long getStartTime() { return startTime; }
+    public List<HealthAlarm> listAlarms(){ return healthAlarmList; }
+    protected ConfigItem getConfig() { return config; }
+    protected ResourceManager getResourceManager() { return resourceManager; }
+    protected TransportCallableServer getRpcServer() { return rpcServer; }
+
     private void connectDataStoreBackend() throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
-        resourceStoreProvider = new ResourceManager(config);
+        resourceManager = new ResourceManager(config);
     }
 
     private void connectRpcTransport() throws IllegalAccessException, ClassNotFoundException, InstantiationException, InvocationTargetException, NoSuchMethodException {
-        rpcServer = TransportFactory.newRpcServer(config, new RpcRequestHandler(resourceStoreProvider));
+        rpcServer = TransportFactory.newRpcServer(config, new RpcRequestHandler(resourceManager));
         Thread rpcServerThread = new Thread(rpcServer);
         rpcServerThread.setName(String.format("%s-transport",config.getConfigName()));
         rpcServerThread.start();
@@ -55,28 +58,7 @@ public class DataStoreServer implements Runnable {
     }
 
     private void startDataStoreAPI() {
-        dataStoreAPI = new DataStoreAPI(resourceStoreProvider);
-    }
-
-    public  String getName() {return config.getConfigName(); }
-    public String getId(){
-        return config.getConfigId();
-    }
-    public long getStartTime(){
-        return startTime;
-    }
-    public String getPerformanceTier(){
-        return config.getConfigString("performance_tier");
-    }
-    public long getUsedQuota() {
-        return usedQuota;
-    }
-    public long getHardQuota() {
-        return hardQuota;
-    }
-    public List<HealthAlarm> listAlarms(){ return healthAlarmList; }
-    public ResourceStoreProvider getResourceStoreProvider() {
-         return resourceStoreProvider;
+        dataStoreAPI = new DataStoreAPI(resourceManager);
     }
 
     @Override

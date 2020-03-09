@@ -1,26 +1,37 @@
 package stitch.datastore.resource;
 
 import stitch.aggregator.metastore.DataStoreNotFoundException;
+import stitch.util.HealthAlarm;
 import stitch.util.configuration.item.ConfigItem;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class ResourceManager implements ResourceStoreProvider {
 
-    ConfigItem providerConfig;
+    ConfigItem config;
     ResourceStoreProvider resourceStoreProvider;
+    long usedQuota;
+    long hardQuota;
 
-    public ResourceManager(ConfigItem providerConfig) throws IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchMethodException, ClassNotFoundException {
-        this.providerConfig = providerConfig;
-        Class<? extends ResourceStoreProvider> dataStoreCallableClass = providerConfig.getConfigClass("class");
+    public ResourceManager(ConfigItem config) throws IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchMethodException, ClassNotFoundException {
+        this.config = config;
+
+        hardQuota = config.getConfigLong("hard_quota");
+        usedQuota = config.getConfigLong("used_quota");
+
+        Class<? extends ResourceStoreProvider> dataStoreCallableClass = config.getConfigClass("class");
         Constructor<?> dataStoreCallableClassConstructor = dataStoreCallableClass.getConstructor(ConfigItem.class);
-        this.resourceStoreProvider = (ResourceStoreProvider) dataStoreCallableClassConstructor.newInstance(providerConfig);
+        this.resourceStoreProvider = (ResourceStoreProvider) dataStoreCallableClassConstructor.newInstance(config);
     }
 
     @Override
     public String createResource(ResourceRequest resourceRequest) throws Exception {
+        resourceRequest.setId(UUID.randomUUID().toString().replace("-", ""));
         return resourceStoreProvider.createResource(resourceRequest);
     }
 
@@ -69,7 +80,14 @@ public class ResourceManager implements ResourceStoreProvider {
         return resourceStoreProvider.readData(resourceId, offset, length);
     }
 
-
+    public String getPerformanceTier(){
+        return config.getConfigString("performance_tier");
+    }
+    public long getUsedQuota() {
+        return usedQuota;
+    }
+    public long getHardQuota() { return hardQuota; }
+    
     @Override
     public boolean isReady() {
         return this.resourceStoreProvider.isReady();
