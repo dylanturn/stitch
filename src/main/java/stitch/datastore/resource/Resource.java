@@ -29,6 +29,12 @@ public class Resource implements Serializable {
     private String performanceTier = "unknown";
     @SerializedName("meta_map")
     private Map<String, Object> metaMap = new HashMap<>();
+    @SerializedName("master_store")
+    private String masterStore = "unknown";
+    @SerializedName("active_stores")
+    private String[] activeStores = new String[0];
+    @SerializedName("inactive_stores")
+    private String[] inactiveStores = new String[0];
 
     public Resource(){}
     public Resource(String id, long created, long mtime, long epoch, long dataSize, String dataType, String performanceTier, Map<String, Object> metaMap) {
@@ -40,6 +46,12 @@ public class Resource implements Serializable {
         this.dataType = dataType;
         this.performanceTier = performanceTier;
         this.metaMap = metaMap;
+    }
+    public Resource(String id, long created, long mtime, long epoch, long dataSize, String dataType, String performanceTier, Map<String, Object> metaMap, String masterStore, String[] activeStores, String[] inactiveStores) {
+        this(id, created, mtime, epoch, dataSize, dataType, performanceTier, metaMap);
+        setMasterStore(masterStore);
+        setActiveStores(activeStores);
+        setInactiveStores(inactiveStores);
     }
 
     public long getEpoch(){
@@ -118,6 +130,27 @@ public class Resource implements Serializable {
     public Resource setPerformanceTier(String performanceTier){
         incrementEpoch();
         this.performanceTier = performanceTier;
+        return this;
+    }
+
+    public String getMasterStore(){ return masterStore; }
+    public Resource setMasterStore(String masterStore){
+        if(masterStore != null)
+            this.masterStore = masterStore;
+        return this;
+    }
+
+    public String[] getActiveStores(){ return activeStores; }
+    public Resource setActiveStores(String[] activesStores){
+        if(activesStores!= null)
+            this.activeStores = activesStores;
+        return this;
+    }
+
+    public String[] getInactiveStores(){ return inactiveStores; }
+    public Resource setInactiveStores(String[] inactiveStores){
+        if(inactiveStores != null)
+            this.inactiveStores = inactiveStores;
         return this;
     }
 

@@ -15,14 +15,12 @@ public class ResourceManager implements ResourceStoreProvider {
 
     ConfigItem config;
     ResourceStoreProvider resourceStoreProvider;
-    long usedQuota;
     long hardQuota;
 
     public ResourceManager(ConfigItem config) throws IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchMethodException, ClassNotFoundException {
         this.config = config;
 
         hardQuota = config.getConfigLong("hard_quota");
-        usedQuota = config.getConfigLong("used_quota");
 
         Class<? extends ResourceStoreProvider> dataStoreCallableClass = config.getConfigClass("class");
         Constructor<?> dataStoreCallableClassConstructor = dataStoreCallableClass.getConstructor(ConfigItem.class);
@@ -82,9 +80,6 @@ public class ResourceManager implements ResourceStoreProvider {
 
     public String getPerformanceTier(){
         return config.getConfigString("performance_tier");
-    }
-    public long getUsedQuota() {
-        return usedQuota;
     }
     public long getHardQuota() { return hardQuota; }
     

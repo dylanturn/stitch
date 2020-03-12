@@ -61,7 +61,8 @@ public class MetaCacheProvider {
                     .addNumericField("hard_quota")
                     .addNumericField("resource_count")
                     .addNumericField("last_hash")
-                    .addNumericField("last_seen");
+                    .addNumericField("last_seen")
+                    .addNumericField("latency");
             client.createIndex(datastoreSchema, Client.IndexOptions.defaultOptions());
         }
         return client;
@@ -83,11 +84,20 @@ public class MetaCacheProvider {
         return client;
     }
 
+    protected Client getDatastoreClient(){
+        return datastoreSchemaClient;
+    }
+    protected Client getResourceClient(){
+        return resourceSchemaClient;
+    }
+
     private String calculateDocumentHashId(String dataStoreId, String resourceId){
         return String.valueOf(Objects.hash(dataStoreId, resourceId));
     }
 
     protected void cacheDataStoreMeta(DataStoreStatus dataStoreStatus){
+
+
 
         // Try get the cache item from redisearch. NULL will be returned if it doesn't exist.
         Document datastoreCache = this.datastoreSchemaClient.getDocument(dataStoreStatus.getId());
@@ -97,6 +107,7 @@ public class MetaCacheProvider {
         datastoreFields.put("datastore_id", dataStoreStatus.getId());
         datastoreFields.put("last_hash", dataStoreStatus.hashCode());
         datastoreFields.put("last_seen", Instant.now().toEpochMilli());
+        datastoreFields.put("latency", dataStoreStatus.getLatency());
 
         // If the document exists and has a last_hash property, then we'll just update it.
         if(datastoreCache != null && datastoreCache.hasProperty("last_hash")) {
@@ -157,13 +168,6 @@ public class MetaCacheProvider {
             this.resourceSchemaClient.replaceDocument(resourceStatus.getId(), 0.5f, resourceFields);
             updateReplicaMap(datastoreId, resourceStatus.getId());
         }
-    }
-
-    protected Client getDatastoreClient(){
-        return datastoreSchemaClient;
-    }
-    protected Client getResourceClient(){
-        return resourceSchemaClient;
     }
 
     protected void updateReplicaMap(String datastoreId, String resourceId){
@@ -230,7 +234,8 @@ public class MetaCacheProvider {
                         .setUsedQuota(Long.valueOf(document.getString("used_quota")))
                         .setHardQuota(Long.valueOf(document.getString("hard_quota")))
                         .setResourceCount(Long.valueOf(document.getString("resource_count")))
-                        .setLastSeen(Long.valueOf(document.getString("last_seen")));
+                        .setLastSeen(Long.valueOf(document.getString("last_seen")))
+                        .setLatency(Long.valueOf(document.getString("latency")));
             }
         }
         return null;
@@ -315,23 +320,32 @@ public class MetaCacheProvider {
 
     protected DataStoreInfo getLeastUsedDatastore(String performanceTier){
         AggregationBuilder aggregationBuilder = new AggregationBuilder();
+        long currentTime = Instant.now().toEpochMilli();
+        logger.trace(String.format("At the tone the current time will be: %s", currentTime));
         aggregationBuilder
-                .load("@datastore_id", "@hard_quota", "@used_quota", "@performance_tier")
-                .filter(String.format("@performance_tier=='%s'",performanceTier))
+                .load("@datastore_id", "@hard_quota", "@used_quota", "@performance_tier", "@last_seen")
+                .filter(String.format("@performance_tier=='%s' && @last_seen >= %s", performanceTier, currentTime-5000))
                 .apply("@hard_quota - @used_quota", "available_quota")
                 .sortByDesc("@available_quota")
                 .limit(1);
         logger.trace(String.format("Getting least used datastore: %s", aggregationBuilder.getArgsString()));
-        AggregationResult aggregationResult;
+        AggregationResult aggregationResults;
         try {
-            aggregationResult = datastoreSchemaClient.aggregate(aggregationBuilder);
-            logger.trace(String.format("Total results found: %s", aggregationResult.totalResults));
+            aggregationResults = datastoreSchemaClient.aggregate(aggregationBuilder);
+            logger.trace(String.format("Total results found: %s", aggregationResults.totalResults));
         } catch(Exception error){
             logger.error("Had error!", error);
             return null;
         }
 
-        Row firstRow = aggregationResult.getRow(0);
+        for(Map<String, Object> aggregationResult : aggregationResults.getResults()){
+            logger.trace("Agg keys: " + aggregationResult.keySet());
+            logger.trace("Agg values: " + aggregationResult.values());
+        }
+
+        Row firstRow = aggregationResults.getRow(0);
+
+
         if(firstRow == null){
             logger.error("Couldn't find any datastores!");
             return null;

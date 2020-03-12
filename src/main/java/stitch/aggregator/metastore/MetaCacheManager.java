@@ -12,6 +12,7 @@ import stitch.datastore.resource.ResourceRequest;
 import stitch.util.configuration.item.ConfigItem;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.*;
 
 public class MetaCacheManager implements MetaStore {
@@ -43,11 +44,14 @@ public class MetaCacheManager implements MetaStore {
     @Override
     public Resource getResource(String resourceId) {
         try {
-            return aggregatorServer.getDataStoreClient(getResourceStoreById(resourceId)).getResource(resourceId);
+            return aggregatorServer.getDataStoreClient(getResourceStoreById(resourceId)).getResource(resourceId)
+                    .setMasterStore(metaCacheProvider.lookupMasterDataStoreId(resourceId))
+                    .setActiveStores(metaCacheProvider.lookupDataStoreIds(resourceId, ResourceReplicaRole.ACTIVE))
+                    .setInactiveStores(metaCacheProvider.lookupDataStoreIds(resourceId, ResourceReplicaRole.INACTIVE));
         } catch (Exception error){
             metaCacheProvider.getResourceClient().deleteDocument(resourceId);
+            return null;
         }
-        return null;
     }
 
     @Override
@@ -69,7 +73,6 @@ public class MetaCacheManager implements MetaStore {
         return false;
     }
 
-    // TODO: Implement this!
     @Override
     public boolean deleteResource(String resourceId) {
         try {
@@ -94,9 +97,9 @@ public class MetaCacheManager implements MetaStore {
             }
             return resourceList;
         } catch (Exception error){
-
+            logger.error("Failed to find resource!", error);
+            return null;
         }
-        return null;
     }
 
     @Override
@@ -126,11 +129,6 @@ public class MetaCacheManager implements MetaStore {
 
         for(Document document : metaCacheProvider.getResourceClient().search(query).docs){
             logger.info("RESOURCE FOUND");
-            HashMap<String, Object> resourceMeta = new HashMap<>();
-            resourceMeta.put("master_store", metaCacheProvider.lookupMasterDataStoreId(document.getString("resource_id")));
-            resourceMeta.put("active_stores", metaCacheProvider.lookupDataStoreIds(document.getId(), ResourceReplicaRole.ACTIVE));
-            resourceMeta.put("inactive_stores", metaCacheProvider.lookupDataStoreIds(document.getId(), ResourceReplicaRole.INACTIVE));
-
             resourceList.add(new Resource(
                     document.getString("resource_id"),
                     Long.parseLong(document.getString("created")),
@@ -139,9 +137,11 @@ public class MetaCacheManager implements MetaStore {
                     Long.parseLong(document.getString("data_size")),
                     document.getString("data_type"),
                     document.getString("performance_tier"),
-                    resourceMeta
+                    null,
+                    metaCacheProvider.lookupMasterDataStoreId(document.getString("resource_id")),
+                    metaCacheProvider.lookupDataStoreIds(document.getId(), ResourceReplicaRole.ACTIVE),
+                    metaCacheProvider.lookupDataStoreIds(document.getId(), ResourceReplicaRole.INACTIVE)
             ));
-
         }
         logger.info(String.format("%d Resource found!", resourceList.size()));
         return resourceList;
@@ -169,7 +169,8 @@ public class MetaCacheManager implements MetaStore {
                     .setUsedQuota(Long.valueOf(document.getString("used_quota")))
                     .setHardQuota(Long.valueOf(document.getString("hard_quota")))
                     .setResourceCount(Long.valueOf(document.getString("resource_count")))
-                    .setLastSeen(Long.valueOf(document.getString("last_seen")));
+                    .setLastSeen(Long.valueOf(document.getString("last_seen")))
+                    .setLatency(Long.valueOf(document.getString("latency")));
             datastoreList.add(dataStoreInfo);
         }
         return datastoreList.toArray(new DataStoreInfo[0]);
@@ -182,6 +183,7 @@ public class MetaCacheManager implements MetaStore {
 
     @Override
     public void reportDataStoreStatus(DataStoreStatus dataStoreStatus) throws IOException, InterruptedException {
+        dataStoreStatus.setLatency(Instant.now().toEpochMilli() - dataStoreStatus.getReportTime());
         metaCacheProvider.cacheDataStoreMeta(dataStoreStatus);
         for(Resource resourceStatus : dataStoreStatus.getResources()){
             metaCacheProvider.cacheResourceMeta(dataStoreStatus.getId(), resourceStatus);
