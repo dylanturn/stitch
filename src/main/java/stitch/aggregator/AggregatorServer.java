@@ -60,6 +60,9 @@ public class AggregatorServer implements Runnable {
     public DataStoreClient getDataStoreClient(String dataStoreClientId) {
         return dataStoreClients.get(dataStoreClientId);
     }
+    public DataStoreClient[] getDataStoreClients() {
+        return  dataStoreClients.values().toArray(new DataStoreClient[0]);
+    }
     public ConfigItem getConfig() {
         return config;
     }

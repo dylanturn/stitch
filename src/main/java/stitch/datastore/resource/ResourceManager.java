@@ -1,6 +1,7 @@
 package stitch.datastore.resource;
 
 import stitch.aggregator.metastore.DataStoreNotFoundException;
+import stitch.datastore.query.SearchQuery;
 import stitch.util.HealthAlarm;
 import stitch.util.configuration.item.ConfigItem;
 
@@ -44,8 +45,8 @@ public class ResourceManager implements ResourceStoreProvider {
     }
 
     @Override
-    public List<Resource> findResources(String filter) {
-        return resourceStoreProvider.findResources(filter);
+    public List<Resource> findResources(SearchQuery query) throws Exception {
+        return resourceStoreProvider.findResources(query);
     }
 
     @Override

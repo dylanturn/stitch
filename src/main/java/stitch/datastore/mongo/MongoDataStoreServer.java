@@ -7,6 +7,8 @@ import com.mongodb.client.result.UpdateResult;
 import org.apache.log4j.Logger;
 import org.bson.BsonDocument;
 import org.bson.Document;
+import stitch.datastore.query.QueryCondition;
+import stitch.datastore.query.SearchQuery;
 import stitch.datastore.resource.Resource;
 import stitch.datastore.resource.ResourceRequest;
 import stitch.datastore.resource.ResourceStoreProvider;
@@ -112,6 +114,7 @@ public class MongoDataStoreServer implements ResourceStoreProvider {
         logger.trace(String.format("Getting resource: %s", resourceId));
         BasicDBObject query = new BasicDBObject();
         query.put("resource_id", resourceId);
+
         Document resourceObject = mongoCollection.find(query).first();
         return toResource(resourceObject);
     }
@@ -138,8 +141,38 @@ public class MongoDataStoreServer implements ResourceStoreProvider {
 
     // TODO: Implement some kind of resource search logic.
     @Override
-    public ArrayList<Resource> findResources(String filter) {
-        return listResources();
+    public ArrayList<Resource> findResources(SearchQuery searchQuery) throws Exception {
+
+        BasicDBObject query = new BasicDBObject();
+
+        for(QueryCondition queryCondition : searchQuery.getConditions()){
+            logger.trace(String.format("Got Query!\n%s",queryCondition.toString()));
+            logger.trace("Value Object Class: " + queryCondition.getValue().getClass().getName());
+
+            BasicDBObject basicDBObject = new BasicDBObject();
+            String operator = String.format("$%s",queryCondition.getOperator().toString().toLowerCase());
+
+            try{
+                basicDBObject = new BasicDBObject(operator, Long.valueOf(String.valueOf(queryCondition.getValue())));
+
+            } catch(NumberFormatException numberError){
+                logger.warn(String.format("Damnit! Find a better way!\n%s", numberError.getMessage()));
+                basicDBObject = new BasicDBObject(operator, String.valueOf(queryCondition.getValue()));
+
+            } finally {
+                query.put(queryCondition.getMetaKey(), basicDBObject);
+            }
+
+        }
+
+        logger.trace(String.format("Resource Query: %s", query.toJson()));
+
+        ArrayList<Resource> resources = new ArrayList<>();
+        for(Document document : mongoCollection.find(query)){
+            resources.add(toResource(document));
+        }
+
+        return resources;
     }
 
     @Override

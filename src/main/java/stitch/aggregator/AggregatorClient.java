@@ -4,6 +4,7 @@ import org.apache.log4j.Logger;
 import stitch.aggregator.metastore.MetaStore;
 import stitch.datastore.DataStoreInfo;
 import stitch.datastore.DataStoreStatus;
+import stitch.datastore.query.SearchQuery;
 import stitch.datastore.resource.ResourceRequest;
 import stitch.datastore.resource.ResourceStore;
 import stitch.rpc.RpcRequest;
@@ -68,9 +69,9 @@ public class AggregatorClient implements MetaStore, ResourceStore {
     }
 
     @Override
-    public ArrayList<Resource> findResources(String filter) {
+    public ArrayList<Resource> findResources(SearchQuery filter) {
         RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "findResources")
-                .putStringArg(filter);
+                .putArg(filter.getClass(), filter);
         try {
             return (ArrayList<Resource>) rpcClient.invokeRPC(rpcRequest).getResponseObject();
         } catch (Exception error) {

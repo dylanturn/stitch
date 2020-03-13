@@ -6,10 +6,13 @@ import com.google.gson.Gson;
 import org.slf4j.LoggerFactory;
 import stitch.aggregator.metastore.MetaStore;
 import stitch.datastore.DataStoreInfo;
+import stitch.datastore.query.QueryCondition;
+import stitch.datastore.query.SearchQuery;
 import stitch.datastore.resource.Resource;
 import stitch.datastore.resource.ResourceRequest;
 
 import java.util.List;
+import java.util.Set;
 
 import static spark.Spark.*;
 
@@ -90,9 +93,23 @@ public class AggregatorAPI {
                 return "";
             }
         });
+
+        // ?query=@meta_key=='333cf31f81784a8b93d2ae975de9a00a'
+
         get("/api/v1/resource", (request, response) -> {
             response.type("application/json");
-            return resourceListToJson(metaStore.listResources());
+            Set<String> queryStrings = request.queryParams();
+            if(queryStrings.size() == 0){
+                return resourceListToJson(metaStore.listResources());
+            } else {
+                SearchQuery searchQuery = new SearchQuery();
+                for(String queryString : queryStrings){
+                    String[] queryArray = request.queryParams(queryString).split(",");
+                    searchQuery.addCondition(queryString, QueryCondition.Operator.valueOf(queryArray[0].toUpperCase()), queryArray[1]);
+                }
+                return resourceListToJson(metaStore.findResources(searchQuery));
+            }
+
         });
         get("/api/v1/resource/:resource_id", (request, response) -> {
             response.type("application/json");

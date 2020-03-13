@@ -1,6 +1,7 @@
 package stitch.datastore;
 
 import org.apache.log4j.Logger;
+import stitch.datastore.query.SearchQuery;
 import stitch.datastore.resource.ResourceRequest;
 import stitch.datastore.resource.ResourceStore;
 import stitch.rpc.RpcRequest;
@@ -72,8 +73,16 @@ public class DataStoreClient implements ResourceStore {
 
     // TODO: Implement some kind of resource search logic.
     @Override
-    public ArrayList<Resource> findResources(String filter) {
-        return listResources();
+    public ArrayList<Resource> findResources(SearchQuery query) {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "findResources")
+                .putArg(SearchQuery.class, query);
+        try{
+            return (ArrayList<Resource>)rpcClient.invokeRPC(rpcRequest).getResponseObject();
+
+        } catch(Exception error){
+            logger.error(String.format("Failed to list the available resource metadata for datastore %s", endpointConfig.getConfigName()), error);
+            return null;
+        }
     }
 
     @Override

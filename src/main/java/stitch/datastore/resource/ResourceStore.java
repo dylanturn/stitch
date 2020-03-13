@@ -1,6 +1,7 @@
 package stitch.datastore.resource;
 
 import stitch.aggregator.metastore.DataStoreNotFoundException;
+import stitch.datastore.query.SearchQuery;
 
 import java.util.List;
 
@@ -12,7 +13,7 @@ public interface ResourceStore {
     // RESOURCE READ/LIST/FIND
     Resource getResource(String resourceId) throws Exception;
     List<Resource> listResources();
-    List<Resource> findResources(String filter);
+    List<Resource> findResources(SearchQuery searchQuery) throws Exception;
 
     // RESOURCE UPDATE
     boolean updateResource(ResourceRequest resourceRequest) throws Exception;

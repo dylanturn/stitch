@@ -4,8 +4,10 @@ import io.redisearch.*;
 import org.apache.log4j.Logger;
 
 import stitch.aggregator.AggregatorServer;
+import stitch.datastore.DataStoreClient;
 import stitch.datastore.DataStoreInfo;
 import stitch.datastore.DataStoreStatus;
+import stitch.datastore.query.SearchQuery;
 import stitch.datastore.resource.ResourceReplicaRole;
 import stitch.datastore.resource.Resource;
 import stitch.datastore.resource.ResourceRequest;
@@ -88,12 +90,11 @@ public class MetaCacheManager implements MetaStore {
 
     // TODO: Implement this!
     @Override
-    public ArrayList<Resource> findResources(String filter) {
+    public ArrayList<Resource> findResources(SearchQuery query) {
         try {
             ArrayList<Resource> resourceList = new ArrayList<>();
-            for (Document document : metaCacheProvider.getResourceClient().search(new Query(filter)).docs) {
-                resourceList.add(aggregatorServer.getDataStoreClient(document.getString("datastore_id"))
-                        .getResource(document.getString("resource_id")));
+            for(DataStoreClient client : this.aggregatorServer.getDataStoreClients()){
+                resourceList.addAll(client.findResources(query));
             }
             return resourceList;
         } catch (Exception error){
