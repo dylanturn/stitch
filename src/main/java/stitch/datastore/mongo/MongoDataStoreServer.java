@@ -3,12 +3,15 @@ package stitch.datastore.mongo;
 import com.mongodb.*;
 import com.mongodb.MongoClient;
 import com.mongodb.client.*;
+import com.mongodb.client.result.UpdateResult;
 import org.apache.log4j.Logger;
+import org.bson.BsonDocument;
 import org.bson.Document;
-import org.bson.types.Binary;
-import stitch.datastore.DataStoreServer;
-import stitch.resource.Resource;
-import stitch.resource.ResourceRequest;
+import stitch.datastore.query.QueryCondition;
+import stitch.datastore.query.SearchQuery;
+import stitch.datastore.resource.Resource;
+import stitch.datastore.resource.ResourceRequest;
+import stitch.datastore.resource.ResourceStoreProvider;
 import stitch.util.configuration.item.ConfigItem;
 
 import java.lang.reflect.InvocationTargetException;
@@ -16,10 +19,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static com.mongodb.client.model.Projections.fields;
-import static com.mongodb.client.model.Projections.include;
-
-public class MongoDataStoreServer extends DataStoreServer {
+public class MongoDataStoreServer implements ResourceStoreProvider {
 
     static final Logger logger = Logger.getLogger(MongoDataStoreServer.class);
 
@@ -27,63 +27,27 @@ public class MongoDataStoreServer extends DataStoreServer {
     private MongoClient mongoClient;
     private MongoDatabase mongoDatabase;
     private MongoCollection<Document> mongoCollection;
+    private ConfigItem providerConfig;
 
-    public MongoDataStoreServer(ConfigItem dataStoreConfig) throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
-        super(dataStoreConfig);
-
-        String dsProtocol = endpointConfig.getConfigString("protocol");
-        String dsHost = endpointConfig.getConfigString("host");
-        int dsPort = endpointConfig.getConfigInt("port");
-        String dsUsername = endpointConfig.getConfigString("username");
-        String dsPassword = endpointConfig.getConfigString("password");
-        String dsOptions = endpointConfig.getConfigString("options");
-        String database = endpointConfig.getConfigString("database");
-        String collection = endpointConfig.getConfigString("collection");
-
-        logger.info("Start a new DataStore instance...");
-        logger.info("UUID:  " + endpointConfig.getConfigId());
-        logger.info("Class: " + endpointConfig.getConfigString("class"));
-        logger.info("Type: " + endpointConfig.getConfigString("type"));
-        logger.info("Host: " + endpointConfig.getConfigString("host"));
-        logger.info("Options: " + endpointConfig.getConfigString("options"));
-        logger.info("Database: " + endpointConfig.getConfigString("database"));
-        logger.info("Collection: " + endpointConfig.getConfigString("collection"));
-
+    public MongoDataStoreServer(ConfigItem providerConfig) throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
+        this.providerConfig = providerConfig;
         try {
-            dsURI = String.format("%s://%s:%s@%s/%s?%s", dsProtocol, dsUsername, dsPassword, dsHost, database, dsOptions);
+            dsURI = String.format("%s://%s:%s@%s/%s?%s",
+                    providerConfig.getConfigString("protocol"),
+                    providerConfig.getConfigString("username"),
+                    providerConfig.getConfigString("password"),
+                    providerConfig.getConfigString("host"),
+                    providerConfig.getConfigString("database"),
+                    providerConfig.getConfigString("options"));
             MongoClientURI mongoClientURI = new MongoClientURI(dsURI);
             mongoClient = new MongoClient(mongoClientURI);
-            mongoDatabase = mongoClient.getDatabase(database);
-            this.mongoCollection = mongoDatabase.getCollection(collection);
+            mongoDatabase = mongoClient.getDatabase(providerConfig.getConfigString("database"));
+            this.mongoCollection = mongoDatabase.getCollection(providerConfig.getConfigString("collection"));
         } catch(Exception error){
             logger.error("Failed to load the collection!");
             logger.error(error);
         }
     }
-
-
-    /*
-        // resource_id
-    private String id;
-    // created
-    private long created;
-    // mtime
-    private long mtime;
-    // epoch
-    private long epoch;
-    // last_hash
-    private String lastHash;
-    // last_seen
-    private long lastSeen;
-    // data_size
-    private long dataSize;
-    // data_type
-    private String dataType;
-    // performance_tier
-    private String performanceTier;
-    // meta_map
-    private Map<String, Object> metaMap = new HashMap<>();
-     */
 
     private static Document fromResource(Resource resource){
         Document document = new Document();
@@ -91,8 +55,6 @@ public class MongoDataStoreServer extends DataStoreServer {
         document.put("created", resource.getCreated());
         document.put("mtime", resource.getMtime());
         document.put("epoch", resource.getEpoch());
-        document.put("last_hash", resource.getLastHash());
-        document.put("last_seen", resource.getLastSeen());
         document.put("data_size", resource.getDataSize());
         document.put("data_type", resource.getDataType());
         document.put("performance_tier", resource.getPerformanceTier());
@@ -108,8 +70,6 @@ public class MongoDataStoreServer extends DataStoreServer {
                 document.getLong("created"),
                 document.getLong("mtime"),
                 document.getLong("epoch"),
-                document.getString("last_hash"),
-                document.getLong("last_seen"),
                 document.getLong("data_size"),
                 document.getString("data_type"),
                 document.getString("performance_tier"),
@@ -118,57 +78,43 @@ public class MongoDataStoreServer extends DataStoreServer {
     }
 
     @Override
-    public String createResource(String performanceTier, long dataSize, String dataType, Map<String, Object> metaMap) {
-        logger.trace("Creating resource!");
-        MongoDatabase mdb = mongoClient.getDatabase(endpointConfig.getConfigString("database"));
-        MongoCollection<Document> mcol = mdb.getCollection(endpointConfig.getConfigString("collection"));
-
-        Resource resource = new Resource();
-        resource.setId(UUID.randomUUID().toString().replace("-", ""))
-                .setCreated(Instant.now().toEpochMilli())
-                .setDataSize(dataSize)
-                .setDataType(dataType)
-                .setPerformanceTier(performanceTier)
-                .setMeta(metaMap);
-
-        logger.trace(String.format("Inserting resource %s into the database...",resource.getId()));
-        mcol.insertOne(fromResource(resource));
-        return resource.getId();
-    }
-
-    @Override
     public String createResource(ResourceRequest resourceRequest) throws Exception {
-
         logger.trace("Creating resource!");
-        MongoDatabase mdb = mongoClient.getDatabase(endpointConfig.getConfigString("database"));
-        MongoCollection<Document> mcol = mdb.getCollection(endpointConfig.getConfigString("collection"));
-
+        MongoDatabase mdb = mongoClient.getDatabase(providerConfig.getConfigString("database"));
+        MongoCollection<Document> mcol = mdb.getCollection(providerConfig.getConfigString("collection"));
         Resource resource = new Resource();
-        resource.setId(UUID.randomUUID().toString().replace("-", ""))
+        resource.setId(resourceRequest.getId())
                 .setCreated(Instant.now().toEpochMilli())
                 .setDataSize(resourceRequest.getDataSize())
                 .setDataType(resourceRequest.getDataType())
                 .setPerformanceTier(resourceRequest.getPerformanceTier())
                 .setMeta(resourceRequest.getMetaMap());
-
         logger.trace(String.format("Inserting resource %s into the database...",resource.getId()));
         mcol.insertOne(fromResource(resource));
         return resource.getId();
     }
 
     @Override
-    public boolean updateResource(Resource resource) {
-        logger.trace(String.format("Updating resource: %s", resource.getId()));
+    public boolean updateResource(ResourceRequest resourceRequest) throws Exception {
+        logger.trace(String.format("Updating resource: %s", resourceRequest.getId()));
         BasicDBObject query = new BasicDBObject();
-        query.put("uuid", resource.getId());
-        return mongoCollection.updateOne(query, fromResource(resource)).wasAcknowledged();
+        // Get the resource we want to update.
+        Resource resource = getResource(resourceRequest.getId());
+        if(resourceRequest.getEpoch() == resource.getEpoch()) {
+            resource = resource.updateResource(resourceRequest);
+            query.put("resource_id", resourceRequest.getId());
+            return mongoCollection.replaceOne(query, fromResource(resource)).wasAcknowledged();
+        } else {
+            return false;
+        }
     }
 
     @Override
     public Resource getResource(String resourceId) {
         logger.trace(String.format("Getting resource: %s", resourceId));
         BasicDBObject query = new BasicDBObject();
-        query.put("uuid", resourceId);
+        query.put("resource_id", resourceId);
+
         Document resourceObject = mongoCollection.find(query).first();
         return toResource(resourceObject);
     }
@@ -177,7 +123,7 @@ public class MongoDataStoreServer extends DataStoreServer {
     public boolean deleteResource(String resourceId) {
         logger.trace(String.format("Deleting resource: %s", resourceId));
         BasicDBObject query = new BasicDBObject();
-        query.put("uuid", resourceId);
+        query.put("resource_id", resourceId);
         return mongoCollection.deleteOne(query).wasAcknowledged();
     }
 
@@ -195,17 +141,69 @@ public class MongoDataStoreServer extends DataStoreServer {
 
     // TODO: Implement some kind of resource search logic.
     @Override
-    public ArrayList<Resource> findResources(String filter) {
-        return listResources();
+    public ArrayList<Resource> findResources(SearchQuery searchQuery) throws Exception {
+
+        BasicDBObject query = new BasicDBObject();
+
+        for(QueryCondition queryCondition : searchQuery.getConditions()){
+            logger.trace(String.format("Got Query!\n%s",queryCondition.toString()));
+            logger.trace("Value Object Class: " + queryCondition.getValue().getClass().getName());
+
+            BasicDBObject basicDBObject = new BasicDBObject();
+            String operator = String.format("$%s",queryCondition.getOperator().toString().toLowerCase());
+
+            try{
+                basicDBObject = new BasicDBObject(operator, Long.valueOf(String.valueOf(queryCondition.getValue())));
+
+            } catch(NumberFormatException numberError){
+                logger.warn(String.format("Damnit! Find a better way!\n%s", numberError.getMessage()));
+                basicDBObject = new BasicDBObject(operator, String.valueOf(queryCondition.getValue()));
+
+            } finally {
+                query.put(queryCondition.getMetaKey(), basicDBObject);
+            }
+
+        }
+
+        logger.trace(String.format("Resource Query: %s", query.toJson()));
+
+        ArrayList<Resource> resources = new ArrayList<>();
+        for(Document document : mongoCollection.find(query)){
+            resources.add(toResource(document));
+        }
+
+        return resources;
     }
 
     @Override
     public byte[] readData(String resourceId) {
         logger.trace(String.format("Getting resource: %s", resourceId));
         BasicDBObject query = new BasicDBObject();
-        query.put("uuid", resourceId);
+        query.put("resource_id", resourceId);
         Document resourceObject = mongoCollection.find(query).first();
-        return resourceObject.get("data", Binary.class).getData();
+        return resourceObject.get("data", String.class).getBytes();
+    }
+
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes) throws Exception {
+        BasicDBObject query = new BasicDBObject();
+        query.put("resource_id", resourceId);
+        Resource curResource = getResource(resourceId).incrementEpoch();
+        updateResource(
+                new ResourceRequest()
+                        .setId(resourceId)
+                        .setEpoch(curResource.getEpoch())
+                        .setDataSize(dataBytes.length));
+        String updateQuery = String.format("{ $set: { data: \"%s\" } }", new String(dataBytes, "utf-8"));
+        UpdateResult updateResult = mongoCollection.updateOne(query, BsonDocument.parse(updateQuery));
+        if(updateResult.wasAcknowledged())
+            return dataBytes.length;
+        return 0;
+    }
+
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes, long offset) {
+        return 0;
     }
 
     public byte[] readData(String resourceId, long offset, long length){
@@ -216,6 +214,11 @@ public class MongoDataStoreServer extends DataStoreServer {
 
     @Override
     public boolean isReady() {
+
+        // How can we be ready if we're not even alive?!
+        if(!isAlive())
+            return false;
+
         ListCollectionsIterable<Document> mongoCollectionlist = mongoDatabase.listCollections()
                 .maxTime(60, TimeUnit.SECONDS);
 
@@ -223,6 +226,13 @@ public class MongoDataStoreServer extends DataStoreServer {
         for(Document document : mongoCollectionlist){
             return true;
         }
+        return false;
+    }
+
+    @Override
+    public boolean isAlive() {
+        if(mongoCollection != null)
+            return true;
         return false;
     }
 

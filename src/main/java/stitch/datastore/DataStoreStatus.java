@@ -1,6 +1,6 @@
 package stitch.datastore;
 
-import stitch.resource.Resource;
+import stitch.datastore.resource.Resource;
 import stitch.util.HealthAlarm;
 
 import java.time.Instant;
@@ -14,15 +14,21 @@ public class DataStoreStatus extends DataStoreInfo {
     private List<HealthAlarm> alarmList = new ArrayList<>();
     private List<Resource> resourceList = new ArrayList<>();
 
+
     public DataStoreStatus(DataStoreServer server) {
         reportTime = Instant.now().toEpochMilli();
         setId(server.getId());
         setStartTime(server.getStartTime());
-        setPerformanceTier(server.getPerformanceTier());
-        setUsedQuota(server.getUsedQuota());
-        setHardQuota(server.hardQuota);
+        setPerformanceTier(server.getResourceManager().getPerformanceTier());
+        long usedQuota = 0;
+        for(Resource resource : server.getResourceManager().listResources()){
+            usedQuota += resource.getDataSize();
+            resourceList.add(resource);
+        }
+        setUsedQuota(usedQuota);
+        setHardQuota(server.getResourceManager().getHardQuota());
+        setResourceCount(resourceList.size());
         alarmList.addAll(server.listAlarms());
-        resourceList.addAll(server.listResources());
     }
 
     public long getReportTime() { return reportTime; }

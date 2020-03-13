@@ -6,7 +6,6 @@ import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
 import org.apache.log4j.Logger;
 import stitch.transport.Transport;
-import stitch.rpc.RpcRequestHandler;
 import stitch.transport.TransportCallableServer;
 import stitch.transport.TransportHandler;
 import stitch.util.configuration.item.ConfigItem;
@@ -16,7 +15,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 

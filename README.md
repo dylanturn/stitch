@@ -25,12 +25,12 @@
 ## Getting Started
 ```bash
 # Starting the DataStore services
-java -cp "target/*:target/libs/*" stitch.stitch.DataStoreMain
+java -cp "target/*:target/libs/*" stitch.stitch.datastore.DataStoreMain
 ```
 
 ```bash
 # Starting the Aggregator service
-java -cp "target/*:target/libs/*" stitch.AggregatorMain
+java -cp "target/*:target/libs/*" stitch.aggregator.AggregatorMain
 ```
 
 ```bash
@@ -50,7 +50,7 @@ public class ExampleConfigDiscovery {
     public static void main(String[] args) throws Exception {
         Map<String, String> filters = new HashMap<>();
         filters.put("type", ConfigItemType.DATASTORE.toString());
-        filters.put("aggregator", endpointConfig.getConfigId());
+        filters.put("aggregator", config.getConfigId());
         for(ConfigItem dataStoreConfig : configStore.getConfigItemsByAttributes(filters)){
             dataStoreClients.put(dataStoreConfig.getConfigId(), new DataStoreClient(dataStoreConfig.getConfigId()));
         }
@@ -68,7 +68,7 @@ import stitch.aggregator.AggregatorServer;
 import stitch.util.configuration.item.ConfigItem;
 
 public class ExampleAggregatorServer implements MetaStoreCallable {
-    public ExampleAggregatorServer(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+    public ExampleAggregatorServer(ConfigItem config) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
     }
 }
 ```
@@ -114,8 +114,8 @@ import stitch.transport.TransportCallableClient;
 import stitch.util.configuration.item.ConfigItem;
 
 public class HttpClient extends RpcCallableAbstract implements RpcCallableClient {
-    public HttpClient(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
-        super(endpointConfig);
+    public HttpClient(ConfigItem config) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+        super(config);
     }
 }
 ```
@@ -128,8 +128,8 @@ import stitch.transport.TransportCallableServer;
 import stitch.util.configuration.item.ConfigItem;
 
 public class HttpServer extends RpcCallableAbstract implements RpcCallableServer {
-    public HttpServer(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
-        super(endpointConfig);
+    public HttpServer(ConfigItem config) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+        super(config);
     }
 }
 ```

@@ -1,12 +1,18 @@
 package stitch.aggregator;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
 import com.google.gson.Gson;
+import org.slf4j.LoggerFactory;
 import stitch.aggregator.metastore.MetaStore;
 import stitch.datastore.DataStoreInfo;
-import stitch.resource.Resource;
-import stitch.resource.ResourceRequest;
+import stitch.datastore.query.QueryCondition;
+import stitch.datastore.query.SearchQuery;
+import stitch.datastore.resource.Resource;
+import stitch.datastore.resource.ResourceRequest;
 
 import java.util.List;
+import java.util.Set;
 
 import static spark.Spark.*;
 
@@ -14,11 +20,8 @@ public class AggregatorAPI {
 
     private MetaStore metaStore;
 
-    public AggregatorAPI(MetaStore metaStore) {
-        this(metaStore, 8080);
-    }
-
     public AggregatorAPI(MetaStore metaStore, int port){
+        ((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger("org.eclipse.jetty").setLevel(Level.ERROR);
         this.metaStore = metaStore;
         port(port);
         startAggregatorEndpoints();
@@ -69,7 +72,6 @@ public class AggregatorAPI {
         post("/api/v1/resource", (request, response) -> {
             response.type("application/json");
             ResourceRequest resourceRequest = ResourceRequest.fromJson(request.body());
-            System.out.println(ResourceRequest.toJson(resourceRequest));
             String resourceId = metaStore.createResource(resourceRequest);
             if(resourceId == null){
                 response.status(500);
@@ -80,33 +82,63 @@ public class AggregatorAPI {
 
         });
 
-        put("/api/v1/resource", (request, response) -> {
-            response.type("application/json");
-            boolean updateSuccess = metaStore.updateResource(Resource.fromJson(request.body()));
-            if(updateSuccess){
+        put("/api/v1/resource/:resource_id", (request, response) -> {
+            ResourceRequest resourceRequest = ResourceRequest.fromJson(request.body());
+            resourceRequest.setId(request.params(":resource_id"));
+            if(metaStore.updateResource(resourceRequest)){
                 response.status(204);
+                return "";
             } else {
                 response.status(500);
+                return "";
             }
-            return null;
         });
+
+        // ?query=@meta_key=='333cf31f81784a8b93d2ae975de9a00a'
 
         get("/api/v1/resource", (request, response) -> {
             response.type("application/json");
-            return resourceListToJson(metaStore.listResources());
+            Set<String> queryStrings = request.queryParams();
+            if(queryStrings.size() == 0){
+                return resourceListToJson(metaStore.listResources());
+            } else {
+                SearchQuery searchQuery = new SearchQuery();
+                for(String queryString : queryStrings){
+                    String[] queryArray = request.queryParams(queryString).split(",");
+                    searchQuery.addCondition(queryString, QueryCondition.Operator.valueOf(queryArray[0].toUpperCase()), queryArray[1]);
+                }
+                return resourceListToJson(metaStore.findResources(searchQuery));
+            }
 
         });
         get("/api/v1/resource/:resource_id", (request, response) -> {
             response.type("application/json");
             return Resource.toJson(metaStore.getResource(request.params(":resource_id")));
         });
+        get("/api/v1/resource/:resource_id/meta/:meta_key", (request, response) -> {
+            response.type("application/json");
+            return metaStore.getResource(request.params(":resource_id")).getMeta(request.params(":meta_key"));
+        });
+
         get("/api/v1/resource/:resource_id/data", (request, response) -> {
             response.type("application/json");
             return metaStore.readData(request.params(":resource_id"));
         });
-        get("/api/v1/resource/:resource_id/meta/:meta_key", (request, response) -> {
+        put("/api/v1/resource/:resource_id/data", (request, response) -> {
             response.type("application/json");
-            return metaStore.getResource(request.params(":resource_id")).getMeta(request.params(":meta_key"));
+            int dataWritten = metaStore.writeData(request.params(":resource_id"), request.bodyAsBytes());
+            return String.format("{\"data_written\": %s}", dataWritten);
+        });
+        delete("/api/v1/resource/:resource_id", (request, response) -> {
+            response.type("application/json");
+            boolean resourceDeleted = metaStore.deleteResource(request.params(":resource_id"));
+            if(resourceDeleted) {
+                response.status(204);
+                return "";
+            } else {
+                response.status(500);
+                return "";
+            }
         });
     }
 

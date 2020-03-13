@@ -1,31 +1,32 @@
-package stitch.aggregator.metastore.redisearch;
+package stitch.aggregator.metastore;
 
 import io.redisearch.*;
 import org.apache.log4j.Logger;
 
-import stitch.aggregator.Aggregator;
 import stitch.aggregator.AggregatorServer;
-import stitch.aggregator.metastore.MetaStore;
+import stitch.datastore.DataStoreClient;
 import stitch.datastore.DataStoreInfo;
 import stitch.datastore.DataStoreStatus;
-import stitch.datastore.ReplicaRole;
-import stitch.resource.Resource;
-import stitch.resource.ResourceRequest;
+import stitch.datastore.query.SearchQuery;
+import stitch.datastore.resource.ResourceReplicaRole;
+import stitch.datastore.resource.Resource;
+import stitch.datastore.resource.ResourceRequest;
 import stitch.util.configuration.item.ConfigItem;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.*;
 
-public class RedisAggregator implements MetaStore {
+public class MetaCacheManager implements MetaStore {
 
-    static final Logger logger = Logger.getLogger(RedisAggregator.class);
+    static final Logger logger = Logger.getLogger(MetaCacheManager.class);
 
     private AggregatorServer aggregatorServer;
-    private MetaCacheManager metaCacheManager;
+    private MetaCacheProvider metaCacheProvider;
 
-    public RedisAggregator(AggregatorServer aggregatorServer) throws IllegalAccessException, ClassNotFoundException, InstantiationException {
+    public MetaCacheManager(AggregatorServer aggregatorServer) throws IllegalAccessException, ClassNotFoundException, InstantiationException {
         this.aggregatorServer = aggregatorServer;
-        ConfigItem aggregatorConfig = aggregatorServer.getEndpointConfig();
+        ConfigItem aggregatorConfig = aggregatorServer.getConfig();
         String redisearchHost = aggregatorConfig.getConfigString("host");
         int redisearchPort = aggregatorConfig.getConfigInt("port");
         String redisearchIndexPrefix = aggregatorConfig.getConfigString(("indexPrefix"));
@@ -39,143 +40,138 @@ public class RedisAggregator implements MetaStore {
         logger.debug("Port: " + redisearchPort);
         logger.debug("Index: " + redisearchIndex);
         logger.debug("PoolSize: " + redisearchPoolSize);
-        metaCacheManager = new MetaCacheManager(redisearchHost, redisearchPort);
+        metaCacheProvider = new MetaCacheProvider(redisearchHost, redisearchPort);
     }
 
     @Override
     public Resource getResource(String resourceId) {
         try {
-            return aggregatorServer.getDataStoreClient(getResourceStoreById(resourceId)).getResource(resourceId);
+            return aggregatorServer.getDataStoreClient(getResourceStoreById(resourceId)).getResource(resourceId)
+                    .setMasterStore(metaCacheProvider.lookupMasterDataStoreId(resourceId))
+                    .setActiveStores(metaCacheProvider.lookupDataStoreIds(resourceId, ResourceReplicaRole.ACTIVE))
+                    .setInactiveStores(metaCacheProvider.lookupDataStoreIds(resourceId, ResourceReplicaRole.INACTIVE));
         } catch (Exception error){
-            metaCacheManager.getResourceClient().deleteDocument(resourceId);
+            metaCacheProvider.getResourceClient().deleteDocument(resourceId);
+            return null;
         }
-        return null;
-    }
-
-    @Override
-    public String createResource(String performanceTier, long dataSize, String dataType, Map<String, Object> metaMap) throws Exception {
-        DataStoreInfo selectedStore = metaCacheManager.selectEligibleDataStore(performanceTier, dataSize);
-        return aggregatorServer.getDataStoreClient(selectedStore.getId()).createResource(performanceTier, dataSize, dataType, metaMap);
     }
 
     @Override
     public String createResource(ResourceRequest resourceRequest) throws Exception {
-        DataStoreInfo selectedStore = metaCacheManager.selectEligibleDataStore(resourceRequest.getPerformanceTier(), resourceRequest.getDataSize());
+        DataStoreInfo selectedStore = metaCacheProvider.selectEligibleDataStore(resourceRequest.getPerformanceTier(), resourceRequest.getDataSize());
         return aggregatorServer.getDataStoreClient(selectedStore.getId()).createResource(resourceRequest);
     }
 
-    // TODO: Implement this!
     @Override
-    public boolean updateResource(Resource resource) {
+    public boolean updateResource(ResourceRequest resourceRequest) throws Exception {
         try {
-            if (aggregatorServer.getDataStoreClient(getResourceStoreById(resource.getId())).updateResource(resource)) {
+            if (aggregatorServer.getDataStoreClient(getResourceStoreById(resourceRequest.getId())).updateResource(resourceRequest)) {
                 return true;
             }
         }catch (Exception error){
             logger.error("Encountered failure while updating resource. Resource will be removed from cache.", error);
-            metaCacheManager.getResourceClient().deleteDocument(resource.getId());
+            metaCacheProvider.getResourceClient().deleteDocument(resourceRequest.getId());
         }
         return false;
     }
 
-    // TODO: Implement this!
     @Override
     public boolean deleteResource(String resourceId) {
         try {
             if (aggregatorServer.getDataStoreClient(getResourceStoreById(resourceId)).deleteResource(resourceId))
-                return metaCacheManager.getResourceClient().deleteDocument(resourceId);
+                return metaCacheProvider.getResourceClient().deleteDocument(resourceId);
 
         } catch (Exception error) {
             logger.error("Encountered failure while deleting resource. Resource will be removed from cache.", error);
-            metaCacheManager.getResourceClient().deleteDocument(resourceId);
+            metaCacheProvider.getResourceClient().deleteDocument(resourceId);
         }
         return false;
     }
 
     // TODO: Implement this!
     @Override
-    public ArrayList<Resource> findResources(String filter) {
+    public ArrayList<Resource> findResources(SearchQuery query) {
         try {
             ArrayList<Resource> resourceList = new ArrayList<>();
-            for (Document document : metaCacheManager.getResourceClient().search(new Query(filter)).docs) {
-                resourceList.add(aggregatorServer.getDataStoreClient(document.getString("datastore_id"))
-                        .getResource(document.getString("uuid")));
+            for(DataStoreClient client : this.aggregatorServer.getDataStoreClients()){
+                resourceList.addAll(client.findResources(query));
             }
             return resourceList;
         } catch (Exception error){
-
+            logger.error("Failed to find resource!", error);
+            return null;
         }
-        return null;
     }
 
     @Override
-    public byte[] readData(String resourceId) {
+    public byte[] readData(String resourceId) throws DataStoreNotFoundException {
+        return aggregatorServer.getDataStoreClient(getResourceStoreById(resourceId)).readData(resourceId);
+    }
+
+    @Override
+    public byte[] readData(String resourceId, long offset, long length) {
         return new byte[0];
     }
 
-    /*
-    document.getString("resource_id"),
-    document.getLong("created"),
-    document.getLong("mtime"),
-    document.getLong("epoch"),
-    document.getString("last_hash"),
-    document.getLong("last_seen"),
-    document.getLong("data_size"),
-    document.getString("data_type"),
-    document.getString("performance_tier"),
-    document.get("meta_map", Document.class)
-     */
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes) throws DataStoreNotFoundException {
+        return aggregatorServer.getDataStoreClient(getResourceStoreById(resourceId)).writeData(resourceId, dataBytes);
+    }
+
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes, long offset) {
+        return 0;
+    }
 
     @Override
     public ArrayList<Resource> listResources() {
         Query query = new Query("*");
         ArrayList<Resource> resourceList = new ArrayList<>();
 
-        for(Document document : metaCacheManager.getResourceClient().search(query).docs){
+        for(Document document : metaCacheProvider.getResourceClient().search(query).docs){
             logger.info("RESOURCE FOUND");
-            HashMap<String, Object> resourceMeta = new HashMap<>();
-            resourceMeta.put("master_store", metaCacheManager.lookupMasterDataStoreId(document.getString("resource_id")));
-            resourceMeta.put("active_stores", metaCacheManager.lookupDataStoreIds(document.getId(), ReplicaRole.ACTIVE));
-            resourceMeta.put("inactive_stores", metaCacheManager.lookupDataStoreIds(document.getId(), ReplicaRole.INACTIVE));
-
             resourceList.add(new Resource(
                     document.getString("resource_id"),
                     Long.parseLong(document.getString("created")),
                     Long.parseLong(document.getString("mtime")),
                     Long.parseLong(document.getString("epoch")),
-                    document.getString("last_hash"),
-                    Long.parseLong(document.getString("last_seen")),
                     Long.parseLong(document.getString("data_size")),
                     document.getString("data_type"),
                     document.getString("performance_tier"),
-                    resourceMeta
+                    null,
+                    metaCacheProvider.lookupMasterDataStoreId(document.getString("resource_id")),
+                    metaCacheProvider.lookupDataStoreIds(document.getId(), ResourceReplicaRole.ACTIVE),
+                    metaCacheProvider.lookupDataStoreIds(document.getId(), ResourceReplicaRole.INACTIVE)
             ));
-
         }
         logger.info(String.format("%d Resource found!", resourceList.size()));
         return resourceList;
     }
 
-    public String getResourceStoreById(String resourceId) {
-        return metaCacheManager.lookupMasterDataStoreId(resourceId);
+    public String getResourceStoreById(String resourceId) throws DataStoreNotFoundException {
+        String storeId = metaCacheProvider.lookupMasterDataStoreId(resourceId);
+        if(storeId == null)
+            throw new DataStoreNotFoundException(storeId);
+        return storeId;
     }
 
     @Override
     public DataStoreInfo getDatastore(String datastoreId) {
-        return metaCacheManager.getDataStoreInfo(datastoreId);
+        return metaCacheProvider.getDataStoreInfo(datastoreId);
     }
 
     @Override
     public DataStoreInfo[] listDataStores() {
         ArrayList<DataStoreInfo> datastoreList = new ArrayList<>();
-        for(Document document : metaCacheManager.getDatastoreClient().search(new Query("*")).docs){
+        for(Document document : metaCacheProvider.getDatastoreClient().search(new Query("*")).docs){
             DataStoreInfo dataStoreInfo = new DataStoreInfo(document.getString("datastore_id"))
                     .setPerformanceTier(document.getString("performance_tier"))
                     .setInstanceClass(document.getString("instance_class"))
                     .setUsedQuota(Long.valueOf(document.getString("used_quota")))
                     .setHardQuota(Long.valueOf(document.getString("hard_quota")))
                     .setResourceCount(Long.valueOf(document.getString("resource_count")))
-                    .setLastSeen(Long.valueOf(document.getString("last_seen")));
+                    .setLastSeen(Long.valueOf(document.getString("last_seen")))
+                    .setLatency(Long.valueOf(document.getString("latency")));
             datastoreList.add(dataStoreInfo);
         }
         return datastoreList.toArray(new DataStoreInfo[0]);
@@ -183,14 +179,15 @@ public class RedisAggregator implements MetaStore {
 
     @Override
     public DataStoreInfo[] findDataStores(String query) {
-        return metaCacheManager.searchDatastores(query);
+        return metaCacheProvider.searchDatastores(query);
     }
 
     @Override
     public void reportDataStoreStatus(DataStoreStatus dataStoreStatus) throws IOException, InterruptedException {
-        metaCacheManager.cacheDataStoreMeta(dataStoreStatus);
+        dataStoreStatus.setLatency(Instant.now().toEpochMilli() - dataStoreStatus.getReportTime());
+        metaCacheProvider.cacheDataStoreMeta(dataStoreStatus);
         for(Resource resourceStatus : dataStoreStatus.getResources()){
-            metaCacheManager.cacheResourceMeta(dataStoreStatus.getId(), resourceStatus);
+            metaCacheProvider.cacheResourceMeta(dataStoreStatus.getId(), resourceStatus);
         }
     }
 }

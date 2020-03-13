@@ -1,6 +1,6 @@
 package stitch.aggregator;
 
-import stitch.resource.ResourceStore;
+import stitch.datastore.resource.ResourceStore;
 
 public interface Aggregator extends ResourceStore {
 }

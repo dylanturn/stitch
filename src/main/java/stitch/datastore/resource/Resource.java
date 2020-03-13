@@ -1,7 +1,7 @@
-package stitch.resource;
+package stitch.datastore.resource;
 
 import com.google.gson.Gson;
-import stitch.util.Serializer;
+import com.google.gson.annotations.SerializedName;
 
 import java.io.*;
 import java.time.Instant;
@@ -13,40 +13,49 @@ public class Resource implements Serializable {
 
     private static final long serialVersionUID = 1234L;
 
-    // resource_id
-    private String id;
-    // created
-    private long created;
-    // mtime
-    private long mtime;
-    // epoch
-    private long epoch;
-    // last_hash
-    private String lastHash;
-    // last_seen
-    private long lastSeen;
-    // data_size
-    private long dataSize;
-    // data_type
-    private String dataType;
-    // performance_tier
-    private String performanceTier;
-    // meta_map
+    @SerializedName("resource_id")
+    private String id = "unknown";
+    @SerializedName("created")
+    private long created = 0;
+    @SerializedName("mtime")
+    private long mtime = 0;
+    @SerializedName("epoch")
+    private long epoch = 0;
+    @SerializedName("data_size")
+    private long dataSize = 0;
+    @SerializedName("data_type")
+    private String dataType = "unknown";
+    @SerializedName("performance_tier")
+    private String performanceTier = "unknown";
+    @SerializedName("meta_map")
     private Map<String, Object> metaMap = new HashMap<>();
-
+    @SerializedName("master_store")
+    private String masterStore = "unknown";
+    @SerializedName("active_stores")
+    private String[] activeStores = new String[0];
+    @SerializedName("inactive_stores")
+    private String[] inactiveStores = new String[0];
 
     public Resource(){}
-    public Resource(String id, long created, long mtime, long epoch, String lastHash, long lastSeen, long dataSize, String dataType, String performanceTier, Map<String, Object> metaMap) {
+    public Resource(String id, long created, long mtime, long epoch, long dataSize, String dataType, String performanceTier, Map<String, Object> metaMap) {
         this.id = id;
         this.created = created;
         this.mtime = mtime;
         this.epoch = epoch;
-        this.lastSeen = lastSeen;
-        this.lastHash = lastHash;
         this.dataSize = dataSize;
         this.dataType = dataType;
         this.performanceTier = performanceTier;
         this.metaMap = metaMap;
+    }
+    public Resource(String id, long created, long mtime, long epoch, long dataSize, String dataType, String performanceTier, Map<String, Object> metaMap, String masterStore, String[] activeStores, String[] inactiveStores) {
+        this(id, created, mtime, epoch, dataSize, dataType, performanceTier, metaMap);
+        setMasterStore(masterStore);
+        setActiveStores(activeStores);
+        setInactiveStores(inactiveStores);
+    }
+
+    public long getEpoch(){
+        return epoch;
     }
 
     // ------ Meta Map STUFF ------
@@ -76,7 +85,6 @@ public class Resource implements Serializable {
         return this;
     }
 
-
     // ------ Resource ID STUFF ------
     public String getId(){ return this.id; }
     public Resource setId(String id){
@@ -84,7 +92,6 @@ public class Resource implements Serializable {
         this.id = id;
         return this;
     }
-
 
     // ------ Created Date STUFF ------
     public long getCreated(){ return created; }
@@ -94,7 +101,6 @@ public class Resource implements Serializable {
         return this;
     }
 
-
     // ------ Modified Time STUFF ------
     public long getMtime() { return mtime; }
     public Resource setMtime(long mtime) {
@@ -102,16 +108,6 @@ public class Resource implements Serializable {
         this.mtime = mtime;
         return this;
     }
-
-
-    // ------ Epoch STUFF ------
-    public long getEpoch() { return epoch; }
-    public Resource setEpoch(long epoch){
-        incrementEpoch();
-        this.epoch = epoch;
-        return this;
-    }
-
 
     // ------ Data Size STUFF ------
     public long getDataSize() { return dataSize; }
@@ -121,23 +117,6 @@ public class Resource implements Serializable {
         return this;
     }
 
-
-    // ------ Last Hash STUFF ------
-    public String getLastHash(){ return lastHash; }
-    public Resource setLastHash(String lastHash){
-        this.lastHash = lastHash;
-        return this;
-    }
-
-
-    // ------ Last Seen STUFF ------
-    public long getLastSeen() { return lastSeen; }
-    public Resource setLastSeen(long lastSeen){
-        this.lastSeen = lastSeen;
-        return this;
-    }
-
-
     // ------ Data Type STUFF ------
     public String getDataType() { return dataType; }
     public Resource setDataType(String dataType){
@@ -145,7 +124,6 @@ public class Resource implements Serializable {
         this.dataType = dataType;
         return this;
     }
-
 
     // ------ Performance Tier STUFF ------
     public String getPerformanceTier(){ return performanceTier; }
@@ -155,12 +133,59 @@ public class Resource implements Serializable {
         return this;
     }
 
+    public String getMasterStore(){ return masterStore; }
+    public Resource setMasterStore(String masterStore){
+        if(masterStore != null)
+            this.masterStore = masterStore;
+        return this;
+    }
 
-    private void incrementEpoch(){
-        long currentEpoch = getEpoch();
-        currentEpoch++;
-        this.metaMap.replace("epoch", currentEpoch);
-        this.metaMap.replace("mtime", Instant.now().toEpochMilli());
+    public String[] getActiveStores(){ return activeStores; }
+    public Resource setActiveStores(String[] activesStores){
+        if(activesStores!= null)
+            this.activeStores = activesStores;
+        return this;
+    }
+
+    public String[] getInactiveStores(){ return inactiveStores; }
+    public Resource setInactiveStores(String[] inactiveStores){
+        if(inactiveStores != null)
+            this.inactiveStores = inactiveStores;
+        return this;
+    }
+
+    public Resource updateResource(ResourceRequest resourceRequest){
+
+        boolean resourceUpdated = false;
+
+        if(resourceRequest.getPerformanceTier() != null) {
+            this.performanceTier = resourceRequest.performanceTier;
+            resourceUpdated = true;
+        }
+        if(resourceRequest.getDataSize() > -1) {
+            this.dataSize = resourceRequest.dataSize;
+            resourceUpdated = true;
+        }
+        if(resourceRequest.getDataType() != null) {
+            this.dataType = resourceRequest.dataType;
+            resourceUpdated = true;
+        }
+        if(resourceRequest.getMetaMap().size() > 0) {
+            this.metaMap = resourceRequest.metaMap;
+            resourceUpdated = true;
+        }
+
+        if(resourceUpdated){
+            incrementEpoch();
+        }
+
+        return this;
+    }
+
+    public Resource incrementEpoch(){
+        this.epoch++;
+        this.mtime = Instant.now().toEpochMilli();
+        return this;
     }
 
     public static Resource newResource(long dataSize, String dataType, String performanceTier, Map<String, Object> metaMap){
@@ -178,11 +203,8 @@ public class Resource implements Serializable {
         return gson.toJson(resource);
     }
 
-
     public static Resource fromJson(String resourceJson){
         Gson gson = new Gson();
         return gson.fromJson(resourceJson, Resource.class);
     }
-
-
 }

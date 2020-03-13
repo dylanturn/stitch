@@ -1,6 +1,7 @@
 package stitch.datastore;
 
 import com.google.gson.Gson;
+import com.google.gson.annotations.SerializedName;
 
 import java.io.Serializable;
 
@@ -8,14 +9,24 @@ public class DataStoreInfo implements Serializable {
 
     private static final long serialVersionUID = 6543L;
 
+    @SerializedName("id")
     private String id;
+    @SerializedName("start_time")
     private long startTime;
+    @SerializedName("performance_tier")
     private String performanceTier;
+    @SerializedName("instance_class")
     private String instanceClass;
+    @SerializedName("used_quota")
     private long usedQuota;
+    @SerializedName("hard_quota")
     private long hardQuota;
+    @SerializedName("resource_count")
     private long resourceCount;
+    @SerializedName("last_seen")
     private long lastSeen;
+    @SerializedName("latency")
+    private long latency;
 
     public DataStoreInfo(){}
 
@@ -55,6 +66,8 @@ public class DataStoreInfo implements Serializable {
         return lastSeen;
     }
 
+    public long getLatency() { return latency; }
+
     public DataStoreInfo setId(String id){
         this.id = id;
         return this;
@@ -92,6 +105,11 @@ public class DataStoreInfo implements Serializable {
 
     public DataStoreInfo setLastSeen(long lastSeen){
         this.lastSeen = lastSeen;
+        return this;
+    }
+
+    public DataStoreInfo setLatency(long latency){
+        this.latency = latency;
         return this;
     }
 
