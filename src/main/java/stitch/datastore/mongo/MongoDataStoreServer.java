@@ -1,20 +1,32 @@
 package stitch.datastore.mongo;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
 import com.mongodb.*;
 import com.mongodb.MongoClient;
 import com.mongodb.client.*;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.result.UpdateResult;
 import org.apache.log4j.Logger;
 import org.bson.BsonDocument;
 import org.bson.Document;
-import stitch.datastore.query.QueryCondition;
-import stitch.datastore.query.SearchQuery;
+import org.bson.codecs.configuration.CodecRegistries;
+import org.bson.conversions.Bson;
+import org.bson.types.Code;
+import org.slf4j.LoggerFactory;
+import stitch.datastore.sqlquery.conditions.QueryCondition;
+import stitch.datastore.sqlquery.conditions.QueryConditionGroup;
+import stitch.datastore.sqlquery.SearchQuery;
 import stitch.datastore.resource.Resource;
 import stitch.datastore.resource.ResourceRequest;
 import stitch.datastore.resource.ResourceStoreProvider;
+import stitch.datastore.sqlquery.conditions.QueryConditionGroupType;
 import stitch.util.configuration.item.ConfigItem;
 
+import javax.print.Doc;
 import java.lang.reflect.InvocationTargetException;
+import java.text.ParseException;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +42,7 @@ public class MongoDataStoreServer implements ResourceStoreProvider {
     private ConfigItem providerConfig;
 
     public MongoDataStoreServer(ConfigItem providerConfig) throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
+        //((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger("org.mongodb.driver").setLevel(Level.ERROR);
         this.providerConfig = providerConfig;
         try {
             dsURI = String.format("%s://%s:%s@%s/%s?%s",
@@ -143,36 +156,90 @@ public class MongoDataStoreServer implements ResourceStoreProvider {
     @Override
     public ArrayList<Resource> findResources(SearchQuery searchQuery) throws Exception {
 
-        BasicDBObject query = new BasicDBObject();
-
-        for(QueryCondition queryCondition : searchQuery.getConditions()){
-            logger.trace(String.format("Got Query!\n%s",queryCondition.toString()));
-            logger.trace("Value Object Class: " + queryCondition.getValue().getClass().getName());
-
-            BasicDBObject basicDBObject = new BasicDBObject();
-            String operator = String.format("$%s",queryCondition.getOperator().toString().toLowerCase());
-
-            try{
-                basicDBObject = new BasicDBObject(operator, Long.valueOf(String.valueOf(queryCondition.getValue())));
-
-            } catch(NumberFormatException numberError){
-                logger.warn(String.format("Damnit! Find a better way!\n%s", numberError.getMessage()));
-                basicDBObject = new BasicDBObject(operator, String.valueOf(queryCondition.getValue()));
-
-            } finally {
-                query.put(queryCondition.getMetaKey(), basicDBObject);
-            }
-
+        System.out.println("Select Clauses");
+        for(String clause : searchQuery.getSelectClause()){
+            System.out.println(clause);
         }
 
-        logger.trace(String.format("Resource Query: %s", query.toJson()));
+        System.out.println("Where Clauses");
+        for(QueryConditionGroup queryConditionGroup : searchQuery.getWhereConditions()){
+            System.out.println("Where Condition Group");
+            for(QueryCondition queryCondition : queryConditionGroup.getGroupConditions()){
+                System.out.println("Field: " + queryCondition.getConditionField());
+                System.out.println("Value: " + queryCondition.getConditionValue());
+            }
+        }
+
+        BasicDBObject selectClause = new BasicDBObject();
+        List<Bson> whereFilterGroup = new ArrayList<>();
+        FindIterable<Document> foundDocuments;
+
+        for(String clause : searchQuery.getSelectClause()){
+            if(clause.equals("*")){
+                selectClause = null;
+                break;
+            } else {
+                selectClause.put(clause, 1);
+            }
+        }
+
+        // Construct groups of filters needed for the Query.
+        // Will probably end up looking something like this:
+        // (foo=bar AND boo=baz) AND (snook=sunk OR snook=dunk)
+        for(QueryConditionGroup queryConditionGroup : searchQuery.getWhereConditions()){
+
+            // If this condition group is of an OR type we create a group or OR filters.
+            if(queryConditionGroup.getQueryConditionGroupType().equals(QueryConditionGroupType.OR)){
+                List<Bson> orFilterGroup = new ArrayList<>();
+                for(QueryCondition queryCondition : queryConditionGroup.getGroupConditions()){
+                    orFilterGroup.add(parseQueryCondition(queryCondition));
+                }
+                whereFilterGroup.add(Filters.or(orFilterGroup.toArray(new Bson[0])));
+
+
+            // If this condition group is NOT of an OR type we made a group of AND filters.
+            } else {
+                List<Bson> andFilterGroup = new ArrayList<>();
+                for(QueryCondition queryCondition : queryConditionGroup.getGroupConditions()){
+                    andFilterGroup.add(parseQueryCondition(queryCondition));
+                }
+                whereFilterGroup.add(Filters.and(andFilterGroup.toArray(new Bson[0])));
+            }
+        }
+
+        Bson queryFilter = Filters.and(whereFilterGroup.toArray(new Bson[0]));
+
+        if(selectClause == null) {
+            foundDocuments = mongoCollection.find(queryFilter);
+        } else {
+            foundDocuments = mongoCollection.find(queryFilter).projection(selectClause);
+        }
 
         ArrayList<Resource> resources = new ArrayList<>();
-        for(Document document : mongoCollection.find(query)){
+        for(Document document : foundDocuments){
             resources.add(toResource(document));
         }
 
         return resources;
+    }
+
+    private Bson parseQueryCondition(QueryCondition queryCondition) throws ParseException {
+        switch(queryCondition.getQueryConditionOperator()){
+            case EQ:
+                return Filters.eq(queryCondition.getConditionField(), queryCondition.getConditionValue());
+            case NE:
+                return Filters.ne(queryCondition.getConditionField(), queryCondition.getConditionValue());
+            case GTE:
+                return Filters.gte(queryCondition.getConditionField(), queryCondition.getConditionValue());
+            case GT:
+                return Filters.gt(queryCondition.getConditionField(), queryCondition.getConditionValue());
+            case LTE:
+                return Filters.lte(queryCondition.getConditionField(), queryCondition.getConditionValue());
+            case LT:
+                return Filters.lt(queryCondition.getConditionField(), queryCondition.getConditionValue());
+            default:
+                throw new ParseException(String.format("Unable to parse: %s", queryCondition.getQueryConditionOperator()), 0);
+        }
     }
 
     @Override

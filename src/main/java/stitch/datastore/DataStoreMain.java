@@ -18,8 +18,6 @@ public class DataStoreMain {
     private static Map<String,Thread> datastoreThreads = new HashMap<>();
 
     public static void main(String[] args) throws Exception {
-
-        ((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger("org.mongodb.driver").setLevel(Level.ERROR);
         ConfigStore configStore = ConfigStore.loadConfigStore();
 
         // Get the id of the ResourceStoreProvider we'd like to start.

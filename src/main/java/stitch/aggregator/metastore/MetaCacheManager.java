@@ -7,7 +7,7 @@ import stitch.aggregator.AggregatorServer;
 import stitch.datastore.DataStoreClient;
 import stitch.datastore.DataStoreInfo;
 import stitch.datastore.DataStoreStatus;
-import stitch.datastore.query.SearchQuery;
+import stitch.datastore.sqlquery.SearchQuery;
 import stitch.datastore.resource.ResourceReplicaRole;
 import stitch.datastore.resource.Resource;
 import stitch.datastore.resource.ResourceRequest;
