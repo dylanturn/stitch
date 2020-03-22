@@ -6,8 +6,9 @@ import com.google.gson.Gson;
 import org.slf4j.LoggerFactory;
 import stitch.aggregator.metastore.MetaStore;
 import stitch.datastore.DataStoreInfo;
-import stitch.datastore.query.QueryCondition;
-import stitch.datastore.query.SearchQuery;
+import stitch.datastore.sqlquery.QueryParser;
+import stitch.datastore.sqlquery.conditions.QueryConditionGroup;
+import stitch.datastore.sqlquery.SearchQuery;
 import stitch.datastore.resource.Resource;
 import stitch.datastore.resource.ResourceRequest;
 
@@ -48,7 +49,7 @@ public class AggregatorAPI {
     private void startDatastoreEndpoints(){
         get("/api/v1/datastore", (request, response) -> {
             response.type("application/json");
-            String datastoreQuery = request.queryParams("query");
+            String datastoreQuery = request.queryParams("sqlquery");
             DataStoreInfo[] datastoreInfoList;
             if(datastoreQuery == null)
                 datastoreInfoList = metaStore.listDataStores();
@@ -94,10 +95,18 @@ public class AggregatorAPI {
             }
         });
 
-        // ?query=@meta_key=='333cf31f81784a8b93d2ae975de9a00a'
+        // ?query="select * from * where created>1000 AND meta_map.meta_key_1=meta_val_1 AND (data_size = 5 OR data_size >= 7)"
 
         get("/api/v1/resource", (request, response) -> {
             response.type("application/json");
+            String resourceQuery = request.queryParams("query");
+            if(resourceQuery == null){
+                return resourceListToJson(metaStore.listResources());
+            } else {
+                return resourceListToJson(metaStore.findResources(QueryParser.parseQuery(resourceQuery)));
+            }
+
+            /* response.type("application/json");
             Set<String> queryStrings = request.queryParams();
             if(queryStrings.size() == 0){
                 return resourceListToJson(metaStore.listResources());
@@ -105,10 +114,10 @@ public class AggregatorAPI {
                 SearchQuery searchQuery = new SearchQuery();
                 for(String queryString : queryStrings){
                     String[] queryArray = request.queryParams(queryString).split(",");
-                    searchQuery.addCondition(queryString, QueryCondition.Operator.valueOf(queryArray[0].toUpperCase()), queryArray[1]);
+                    searchQuery.addCondition(queryString, QueryConditionGroup.Operator.valueOf(queryArray[0].toUpperCase()), queryArray[1]);
                 }
                 return resourceListToJson(metaStore.findResources(searchQuery));
-            }
+            }*/
 
         });
         get("/api/v1/resource/:resource_id", (request, response) -> {

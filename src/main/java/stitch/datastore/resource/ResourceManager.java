@@ -1,14 +1,11 @@
 package stitch.datastore.resource;
 
 import stitch.aggregator.metastore.DataStoreNotFoundException;
-import stitch.datastore.query.SearchQuery;
-import stitch.util.HealthAlarm;
+import stitch.datastore.sqlquery.SearchQuery;
 import stitch.util.configuration.item.ConfigItem;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 

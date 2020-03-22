@@ -1,7 +1,7 @@
 package stitch.datastore;
 
 import org.apache.log4j.Logger;
-import stitch.datastore.query.SearchQuery;
+import stitch.datastore.sqlquery.SearchQuery;
 import stitch.datastore.resource.ResourceRequest;
 import stitch.datastore.resource.ResourceStore;
 import stitch.rpc.RpcRequest;

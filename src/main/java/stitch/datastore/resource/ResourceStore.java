@@ -1,7 +1,7 @@
 package stitch.datastore.resource;
 
 import stitch.aggregator.metastore.DataStoreNotFoundException;
-import stitch.datastore.query.SearchQuery;
+import stitch.datastore.sqlquery.SearchQuery;
 
 import java.util.List;
 
