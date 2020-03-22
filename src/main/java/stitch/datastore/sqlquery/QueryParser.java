@@ -1,5 +1,6 @@
 package stitch.datastore.sqlquery;
 
+import org.apache.commons.lang3.math.NumberUtils;
 import stitch.datastore.sqlquery.clauses.FromClause;
 import stitch.datastore.sqlquery.clauses.SelectClause;
 import stitch.datastore.sqlquery.clauses.WhereClause;
@@ -116,25 +117,29 @@ public class QueryParser {
 
     private static Object parseConditionValue(String valueString){
 
-        // First we try to parse the float.
-        try{
-            return Float.parseFloat(valueString.trim());
-        }catch(NumberFormatException nfe){}
+        // First we check to see If we can parse it into a number.
+        if(NumberUtils.isParsable(valueString)){
 
-        // If we can't parse a float we parse a long.
-        try{
-            return Long.parseLong(valueString.trim());
-        }catch(NumberFormatException nfe){}
+            // First we try to parse the float.
+            try{
+                return Float.parseFloat(valueString.trim());
+            }catch(NumberFormatException nfe){}
 
-        // Otherwise we check to see if the value is true
-        if(valueString.trim().toLowerCase().equals("true"))
-            return true;
+            // If we can't parse a float we parse a long.
+            try{
+                return Long.parseLong(valueString.trim());
+            }catch(NumberFormatException nfe){}
 
-        // If it's not we check to see if it's false.
-        if(valueString.trim().toLowerCase().equals("false"))
-            return false;
+            // Otherwise we check to see if the value is true
+            if(valueString.trim().toLowerCase().equals("true"))
+                return true;
 
-        // If nothing worked, then I guess it's string?
+            // If it's not we check to see if it's false.
+            if(valueString.trim().toLowerCase().equals("false"))
+                return false;
+
+        }
+        // If we cant parse it into a number then we return the string.
         return valueString;
     }
 }
