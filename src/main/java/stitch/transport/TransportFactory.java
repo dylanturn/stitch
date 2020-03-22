@@ -1,6 +1,5 @@
 package stitch.transport;
 
-import stitch.rpc.RpcRequestHandler;
 import stitch.util.configuration.item.ConfigItem;
 import stitch.util.configuration.store.ConfigStore;
 

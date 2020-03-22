@@ -1,0 +1,166 @@
+package stitch.aggregator;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
+import com.google.gson.Gson;
+import org.slf4j.LoggerFactory;
+import stitch.aggregator.metastore.MetaStore;
+import stitch.datastore.DataStoreInfo;
+import stitch.datastore.sqlquery.QueryParser;
+import stitch.datastore.sqlquery.conditions.QueryConditionGroup;
+import stitch.datastore.sqlquery.SearchQuery;
+import stitch.datastore.resource.Resource;
+import stitch.datastore.resource.ResourceRequest;
+
+import java.util.List;
+import java.util.Set;
+
+import static spark.Spark.*;
+
+public class AggregatorAPI {
+
+    private MetaStore metaStore;
+
+    public AggregatorAPI(MetaStore metaStore, int port){
+        ((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger("org.eclipse.jetty").setLevel(Level.ERROR);
+        this.metaStore = metaStore;
+        port(port);
+        startAggregatorEndpoints();
+        startDatastoreEndpoints();
+        startResourceEndpoints();
+    }
+
+    /* #### AGGREGATOR ### */
+    private void startAggregatorEndpoints(){
+        get("/api/v1/aggregator", (request, response) -> {
+            response.type("application/json");
+            return "[\"aggregator stuff goes here...\"]";
+
+        });
+
+        get("/api/v1/aggregator/health", (request, response) -> {
+            response.type("application/json");
+            return "[\"aggregator health stuff goes here...\"]";
+
+        });
+    }
+
+    /* #### DATASTORES ### */
+    private void startDatastoreEndpoints(){
+        get("/api/v1/datastore", (request, response) -> {
+            response.type("application/json");
+            String datastoreQuery = request.queryParams("sqlquery");
+            DataStoreInfo[] datastoreInfoList;
+            if(datastoreQuery == null)
+                datastoreInfoList = metaStore.listDataStores();
+            else
+                datastoreInfoList = metaStore.findDataStores(datastoreQuery);
+
+            Gson gson = new Gson();
+            String dsJson = gson.toJson(datastoreInfoList);
+            return dsJson;
+
+        });
+
+        get("/api/v1/datastore/:datastore_id", (request, response) -> {
+            response.type("application/json");
+            return DataStoreInfo.toJson(metaStore.getDatastore(request.params(":datastore_id")));
+        });
+    }
+
+    /* #### RESOURCES ### */
+    private void startResourceEndpoints(){
+        post("/api/v1/resource", (request, response) -> {
+            response.type("application/json");
+            ResourceRequest resourceRequest = ResourceRequest.fromJson(request.body());
+            String resourceId = metaStore.createResource(resourceRequest);
+            if(resourceId == null){
+                response.status(500);
+            } else {
+                response.status(200);
+            }
+            return String.format("{ \"resource_id\": \"%s\" }", resourceId);
+
+        });
+
+        put("/api/v1/resource/:resource_id", (request, response) -> {
+            ResourceRequest resourceRequest = ResourceRequest.fromJson(request.body());
+            resourceRequest.setId(request.params(":resource_id"));
+            if(metaStore.updateResource(resourceRequest)){
+                response.status(204);
+                return "";
+            } else {
+                response.status(500);
+                return "";
+            }
+        });
+
+        // ?query="select * from * where created>1000 AND meta_map.meta_key_1=meta_val_1 AND (data_size = 5 OR data_size >= 7)"
+
+        get("/api/v1/resource", (request, response) -> {
+            response.type("application/json");
+            String resourceQuery = request.queryParams("query");
+            if(resourceQuery == null){
+                return resourceListToJson(metaStore.listResources());
+            } else {
+                return resourceListToJson(metaStore.findResources(QueryParser.parseQuery(resourceQuery)));
+            }
+
+            /* response.type("application/json");
+            Set<String> queryStrings = request.queryParams();
+            if(queryStrings.size() == 0){
+                return resourceListToJson(metaStore.listResources());
+            } else {
+                SearchQuery searchQuery = new SearchQuery();
+                for(String queryString : queryStrings){
+                    String[] queryArray = request.queryParams(queryString).split(",");
+                    searchQuery.addCondition(queryString, QueryConditionGroup.Operator.valueOf(queryArray[0].toUpperCase()), queryArray[1]);
+                }
+                return resourceListToJson(metaStore.findResources(searchQuery));
+            }*/
+
+        });
+        get("/api/v1/resource/:resource_id", (request, response) -> {
+            response.type("application/json");
+            return Resource.toJson(metaStore.getResource(request.params(":resource_id")));
+        });
+        get("/api/v1/resource/:resource_id/meta/:meta_key", (request, response) -> {
+            response.type("application/json");
+            return metaStore.getResource(request.params(":resource_id")).getMeta(request.params(":meta_key"));
+        });
+
+        get("/api/v1/resource/:resource_id/data", (request, response) -> {
+            response.type("application/json");
+            return metaStore.readData(request.params(":resource_id"));
+        });
+        put("/api/v1/resource/:resource_id/data", (request, response) -> {
+            response.type("application/json");
+            int dataWritten = metaStore.writeData(request.params(":resource_id"), request.bodyAsBytes());
+            return String.format("{\"data_written\": %s}", dataWritten);
+        });
+        delete("/api/v1/resource/:resource_id", (request, response) -> {
+            response.type("application/json");
+            boolean resourceDeleted = metaStore.deleteResource(request.params(":resource_id"));
+            if(resourceDeleted) {
+                response.status(204);
+                return "";
+            } else {
+                response.status(500);
+                return "";
+            }
+        });
+    }
+
+    private static String resourceListToJson(List<Resource> resourceList){
+        Gson gson = new Gson();
+        String rJson = gson.toJson(resourceList);
+        return rJson;
+    }
+
+    private static String datastoreListToJson(DataStoreInfo[] datastoreInfoList){
+        Gson gson = new Gson();
+        String dsJson = gson.toJson(datastoreInfoList);
+        return dsJson;
+    }
+
+}

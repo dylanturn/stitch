@@ -1,25 +1,24 @@
 package stitch.aggregator;
 
 import org.apache.log4j.Logger;
-import stitch.aggregator.metastore.MetaStoreCallable;
+import stitch.aggregator.metastore.MetaStore;
+import stitch.datastore.DataStoreInfo;
 import stitch.datastore.DataStoreStatus;
-import stitch.datastore.ReplicaStatus;
-import stitch.resource.ResourceCallable;
-import stitch.resource.ResourceStatus;
+import stitch.datastore.sqlquery.SearchQuery;
+import stitch.datastore.resource.ResourceRequest;
+import stitch.datastore.resource.ResourceStore;
 import stitch.rpc.RpcRequest;
-import stitch.resource.Resource;
+import stitch.datastore.resource.Resource;
 import stitch.transport.TransportCallableClient;
 import stitch.transport.TransportFactory;
-import stitch.util.EndpointStatus;
 import stitch.util.configuration.item.ConfigItem;
 import stitch.util.configuration.store.ConfigStore;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.List;
 
-public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
+public class AggregatorClient implements MetaStore, ResourceStore {
 
     static final Logger logger = Logger.getLogger(AggregatorClient.class);
 
@@ -39,20 +38,10 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
     }
 
     @Override
-    public String createResource(Resource resource) {
-        return null;
-    }
-
-    @Override
-    public boolean updateResource(Resource resource) {
-        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "updateResource")
-                .putResourceArg(resource);
-        try {
-            return (boolean) rpcClient.invokeRPC(rpcRequest).getResponseObject();
-        } catch(Exception error){
-            logger.error("Failed to update the resource: " + resource.getID(), error);
-            return false;
-        }
+    public String createResource(ResourceRequest resourceRequest) throws Exception {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "createResource")
+                .putArg(ResourceRequest.class, resourceRequest);
+        return (String)rpcClient.invokeRPC(rpcRequest).getResponseObject();
     }
 
     @Override
@@ -61,7 +50,9 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
                .putStringArg(resourceId);
         try {
             return (Resource) rpcClient.invokeRPC(rpcRequest).getResponseObject();
-        } catch(Exception error){}
+        } catch(Exception error){
+            logger.error("Failed to get resource!", error);
+        }
         return null;
     }
 
@@ -78,15 +69,54 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
     }
 
     @Override
-    public ArrayList<Resource> findResources(String filter) {
+    public ArrayList<Resource> findResources(SearchQuery filter) {
         RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "findResources")
-                .putStringArg(filter);
+                .putArg(filter.getClass(), filter);
         try {
             return (ArrayList<Resource>) rpcClient.invokeRPC(rpcRequest).getResponseObject();
         } catch (Exception error) {
             logger.error("Failed to find resources!", error);
             return null;
         }
+    }
+
+    @Override
+    public boolean updateResource(ResourceRequest resourceRequest) throws Exception {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "findResources")
+                .putArg(ResourceRequest.class, resourceRequest);
+        try {
+            return (boolean) rpcClient.invokeRPC(rpcRequest).getResponseObject();
+        } catch (Exception error) {
+            logger.error("Failed to find resources!", error);
+            return false;
+        }
+    }
+
+    @Override
+    public byte[] readData(String resourceId) {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "readData")
+                .putStringArg(resourceId);
+        try {
+            return (byte[]) rpcClient.invokeRPC(rpcRequest).getResponseObject();
+        } catch (Exception error) {
+            logger.error("Failed to read resource!", error);
+            return null;
+        }
+    }
+
+    @Override
+    public byte[] readData(String resourceId, long offset, long length) {
+        return new byte[0];
+    }
+
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes) {
+        return 0;
+    }
+
+    @Override
+    public int writeData(String resourceId, byte[] dataBytes, long offset) {
+        return 0;
     }
 
     @Override
@@ -100,14 +130,34 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
         }
     }
 
+
     @Override
-    public String getDataStoreById(String resourceId) {
-        return null;
+    public DataStoreInfo getDatastore(String dataStoreId) {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "getDatastore")
+                .putArg(String.class, dataStoreId);
+        try {
+            return (DataStoreInfo) rpcClient.invokeRPC(rpcRequest).getResponseObject();
+        } catch(Exception error) {
+            logger.error("Failed to list datastores!", error);
+            return null;
+        }
+    }
+
+    // We should shy away from returning array lists. Lets return an object array.
+    @Override
+    public DataStoreInfo[] listDataStores() {
+        RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "listDataStores");
+        try {
+            return (DataStoreInfo[]) rpcClient.invokeRPC(rpcRequest).getResponseObject();
+        } catch(Exception error){
+            logger.error("Failed to list datastores!", error);
+            return null;
+        }
     }
 
     @Override
-    public ArrayList<EndpointStatus> listDataStores() {
-        return null;
+    public DataStoreInfo[] findDataStores(String query) {
+        return new DataStoreInfo[0];
     }
 
     @Override
@@ -115,20 +165,5 @@ public class AggregatorClient implements MetaStoreCallable, ResourceCallable {
         RpcRequest rpcRequest = new RpcRequest("", rpcClient.getRpcAddress(), "reportDataStoreStatus")
                 .putArg(DataStoreStatus.class, dataStoreStatus);
         rpcClient.broadcastRPC(rpcRequest);
-    }
-
-    @Override
-    public void registerResourceReplica(String datastoreId, ResourceStatus resourceStatus) {
-
-    }
-
-    @Override
-    public void unregisterResourceReplica(String datastoerId, String resourceId) {
-
-    }
-
-    @Override
-    public void updateResourceReplica(String datastoreId, ResourceStatus resourceStatus, ReplicaStatus replicaStatus) {
-
     }
 }

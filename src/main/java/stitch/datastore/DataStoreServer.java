@@ -2,68 +2,63 @@ package stitch.datastore;
 
 
 import org.apache.log4j.Logger;
-import stitch.aggregator.AggregatorServer;
-import stitch.resource.ResourceCallable;
+import stitch.datastore.resource.ResourceManager;
 import stitch.transport.TransportCallableServer;
 import stitch.rpc.RpcRequestHandler;
 import stitch.transport.TransportFactory;
+import stitch.util.HealthAlarm;
 import stitch.util.configuration.item.ConfigItem;
-import sun.security.krb5.Config;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
-public abstract class DataStoreServer implements DataStoreCallable, ResourceCallable, Runnable {
+public class DataStoreServer implements Runnable {
 
     static final Logger logger = Logger.getLogger(DataStoreServer.class);
-    protected ConfigItem endpointConfig;
-    protected TransportCallableServer rpcServer;
-    private StatusReporter statusReporter;
-    private long startTime;
-    protected long usedQuota;
-    protected long hardQuota;
-    private DataStoreCallable callableDataStore;
 
+    ConfigItem config;
+    ResourceManager resourceManager;
+    TransportCallableServer rpcServer;
 
-    public DataStoreServer(ConfigItem endpointConfig) throws IllegalAccessException, InstantiationException, ClassNotFoundException, InvocationTargetException, NoSuchMethodException {
-        this.endpointConfig = endpointConfig;
-        this.startTime = Instant.now().toEpochMilli();
-        statusReporter = new StatusReporter(this);
+    StatusReporter statusReporter;
+    DataStoreAPI dataStoreAPI;
+    int reportInterval = 5000;
+    long startTime;
+    List<HealthAlarm> healthAlarmList = new ArrayList<>();
+
+    public DataStoreServer(ConfigItem config) throws IllegalAccessException, InstantiationException, ClassNotFoundException, InvocationTargetException, NoSuchMethodException {
+        this.config = config;
+        startTime = Instant.now().toEpochMilli();
     }
 
+    public  String getName() {return config.getConfigName(); }
+    public String getId() { return config.getConfigId(); }
+    public long getStartTime() { return startTime; }
+    public List<HealthAlarm> listAlarms(){ return healthAlarmList; }
+    protected ConfigItem getConfig() { return config; }
+    protected ResourceManager getResourceManager() { return resourceManager; }
+    protected TransportCallableServer getRpcServer() { return rpcServer; }
+
     private void connectDataStoreBackend() throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
-        Class<? extends DataStoreCallable> dataStoreCallableClass = endpointConfig.getConfigClass("class");
-        Constructor<?> dataStoreCallableClassConstructor = dataStoreCallableClass.getConstructor(ConfigItem.class);
-        this.callableDataStore = (DataStoreCallable) dataStoreCallableClassConstructor.newInstance(endpointConfig);
+        resourceManager = new ResourceManager(config);
     }
 
     private void connectRpcTransport() throws IllegalAccessException, ClassNotFoundException, InstantiationException, InvocationTargetException, NoSuchMethodException {
-        rpcServer = TransportFactory.newRpcServer(endpointConfig, new RpcRequestHandler(callableDataStore));
-        new Thread(rpcServer).start();
+        rpcServer = TransportFactory.newRpcServer(config, new RpcRequestHandler(resourceManager));
+        Thread rpcServerThread = new Thread(rpcServer);
+        rpcServerThread.setName(String.format("%s-transport",config.getConfigName()));
+        rpcServerThread.start();
     }
 
-    public String getId(){
-        return this.endpointConfig.getConfigId();
-    }
-    public long getStartTime(){
-        return this.startTime;
+    private void startStatusReporter() throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
+        statusReporter = new StatusReporter(this);
+        statusReporter.schedule(reportInterval/2,reportInterval);
     }
 
-    public String getPerformanceTier(){
-        return endpointConfig.getConfigString("performance_tier");
-    }
-
-    public long getUsedQuota() {
-        return usedQuota;
-    }
-
-    public long getHardQuota() {
-        return hardQuota;
-    }
-
-    public TransportCallableServer getRpcServer(){
-        return rpcServer;
+    private void startDataStoreAPI() {
+        dataStoreAPI = new DataStoreAPI(resourceManager);
     }
 
     @Override
@@ -72,7 +67,7 @@ public abstract class DataStoreServer implements DataStoreCallable, ResourceCall
         // Once the DataStoreServer has connected to the backend we can start the RPC transport.
         try {
 
-            // Do whatever needs to be done to connect to the DataStoreCallable backend.
+            // Do whatever needs to be done to connect to the ResourceStoreProvider backend.
             logger.trace("Connecting to the DataStores backend");
             connectDataStoreBackend();
 
@@ -81,18 +76,21 @@ public abstract class DataStoreServer implements DataStoreCallable, ResourceCall
             connectRpcTransport();
 
             logger.trace("Start the status reporter");
-            this.statusReporter.schedule(2000,5000);
+            startStatusReporter();
+
+            logger.trace("Start the DataStores API endpoint");
+            startDataStoreAPI();
 
         } catch (IllegalAccessException e) {
-            e.printStackTrace();
+            logger.error("Access not allowed!", e);
         } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+            logger.error("Failed to find class!", e);
         } catch (InstantiationException e) {
-            e.printStackTrace();
+            logger.error("Failed to instantiate object!", e);
         } catch (InvocationTargetException e) {
-            e.printStackTrace();
+            logger.error("Failed to invoke!", e);
         } catch (NoSuchMethodException e) {
-            e.printStackTrace();
+            logger.error("No such method found!", e);
         }
     }
 }

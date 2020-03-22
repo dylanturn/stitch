@@ -1,15 +1,16 @@
 package stitch.rpc;
 
-import stitch.resource.Resource;
+import stitch.datastore.resource.Resource;
 import stitch.transport.TransmitMode;
 import stitch.util.Serializer;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 public class RpcRequest extends Rpc {
 
-    private HashMap<Class<?>, Object> arguments = new HashMap<>();
+    private LinkedHashMap<Class<?>, Object> arguments = new LinkedHashMap<>();
 
     public RpcRequest(String source, String destination, String method) {
         setSource(source);

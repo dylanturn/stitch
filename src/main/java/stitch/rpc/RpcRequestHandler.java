@@ -1,7 +1,7 @@
 package stitch.rpc;
 
 import org.apache.log4j.Logger;
-import stitch.datastore.DataStoreCallable;
+import stitch.datastore.resource.ResourceStoreProvider;
 import stitch.transport.TransportHandler;
 
 import java.io.IOException;
@@ -20,10 +20,10 @@ public class RpcRequestHandler implements TransportHandler {
         this.serverObject = serverObject;
     }
 
-    public RpcRequestHandler(DataStoreCallable dataStore) {
+    public RpcRequestHandler(ResourceStoreProvider resourceStoreProvider) {
 
-        this.serverClass = dataStore.getClass();
-        this.serverObject = dataStore;
+        this.serverClass = resourceStoreProvider.getClass();
+        this.serverObject = resourceStoreProvider;
     }
 
     @Override
