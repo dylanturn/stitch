@@ -1,6 +1,7 @@
 package stitch.datastore;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import stitch.datastore.sqlquery.SearchQuery;
 import stitch.datastore.resource.ResourceRequest;
 import stitch.datastore.resource.ResourceStore;
@@ -16,7 +17,7 @@ import java.util.ArrayList;
 
 public class DataStoreClient implements ResourceStore {
 
-    static final Logger logger = Logger.getLogger(DataStoreClient.class);
+    private static final Logger logger = LogManager.getLogger(DataStoreClient.class);
 
     protected ConfigItem endpointConfig;
     protected TransportCallableClient rpcClient;

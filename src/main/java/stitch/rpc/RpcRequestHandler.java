@@ -1,6 +1,7 @@
 package stitch.rpc;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import stitch.datastore.resource.ResourceStoreProvider;
 import stitch.transport.TransportHandler;
 
@@ -10,7 +11,7 @@ import java.lang.reflect.Method;
 
 public class RpcRequestHandler implements TransportHandler {
 
-    private static final Logger logger = Logger.getLogger(RpcRequestHandler.class);
+    private static final Logger logger = LogManager.getLogger(RpcRequestHandler.class);
 
     Class<?> serverClass;
     Object serverObject;

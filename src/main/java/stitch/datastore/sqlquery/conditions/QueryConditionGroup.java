@@ -10,7 +10,7 @@ public class QueryConditionGroup implements Serializable {
     private static final long serialVersionUID = 6503L;
 
     private QueryConditionGroupType queryConditionGroupType;
-    private List<QueryCondition> queryConditionList = new ArrayList<QueryCondition>();
+    private List<QueryCondition> queryConditionList = new ArrayList<>();
 
     public QueryConditionGroup(QueryConditionGroupType queryConditionGroupType){
         this.queryConditionGroupType = queryConditionGroupType;

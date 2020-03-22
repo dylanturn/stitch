@@ -6,7 +6,8 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import stitch.util.configuration.item.ConfigItem;
@@ -17,7 +18,7 @@ import java.util.*;
 
 public class MongoPropertyStore extends ConfigStore {
 
-    static final Logger logger = Logger.getLogger(MongoPropertyStore.class);
+    private static final Logger logger = LogManager.getLogger(MongoPropertyStore.class);
 
     private  MongoClient mongoClient;
     private MongoCollection<Document> mongoCollection;

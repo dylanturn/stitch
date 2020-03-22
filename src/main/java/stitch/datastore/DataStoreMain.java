@@ -2,8 +2,8 @@ package stitch.datastore;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
-import org.apache.log4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import stitch.util.configuration.item.ConfigItem;
 import stitch.util.configuration.item.ConfigItemType;
 import stitch.util.configuration.store.ConfigStore;
@@ -14,7 +14,7 @@ import java.util.Map;
 
 public class DataStoreMain {
 
-    private static final Logger logger = Logger.getLogger(DataStoreMain.class);
+    private static final Logger logger = LogManager.getLogger(DataStoreMain.class);
     private static Map<String,Thread> datastoreThreads = new HashMap<>();
 
     public static void main(String[] args) throws Exception {

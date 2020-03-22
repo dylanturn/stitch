@@ -1,6 +1,7 @@
 package stitch.datastore;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import stitch.aggregator.AggregatorClient;
 
 import java.io.IOException;
@@ -11,7 +12,7 @@ import java.util.TimerTask;
 
 public class StatusReporter {
 
-    static final Logger logger = Logger.getLogger(StatusReporter.class);
+    private static final Logger logger = LogManager.getLogger(StatusReporter.class);
 
     private Timer timer;
     private TimerTask task;

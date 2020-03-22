@@ -4,7 +4,8 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import stitch.rpc.RpcRequest;
 import stitch.rpc.RpcResponse;
 import stitch.transport.Transport;
@@ -19,7 +20,7 @@ import java.util.concurrent.BlockingQueue;
 
 public class AmqpClient extends Transport implements TransportCallableClient {
 
-    private static final Logger logger = Logger.getLogger(AmqpClient.class);
+    private static final Logger logger = LogManager.getLogger(AmqpClient.class);
 
     private String amqpServerType;
     private String baseExchange;

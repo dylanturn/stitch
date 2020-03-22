@@ -1,6 +1,7 @@
 package stitch.util.configuration.store;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import stitch.util.configuration.item.ConfigItem;
 import stitch.util.configuration.item.ConfigItemType;
 
@@ -12,7 +13,7 @@ import java.util.Properties;
 
 public abstract class ConfigStore {
 
-    private static final Logger logger = Logger.getLogger(ConfigStore.class);
+    private static final Logger logger = LogManager.getLogger(ConfigStore.class);
     //private static final String propFileName = "application.properties";
     private static final String propFileName = null;
     private static final  String propPrefix = "stitch_ps";

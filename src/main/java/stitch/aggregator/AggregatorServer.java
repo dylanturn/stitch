@@ -1,6 +1,7 @@
 package stitch.aggregator;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import stitch.aggregator.metastore.MetaCacheManager;
 import stitch.aggregator.metastore.MetaStore;
 import stitch.datastore.DataStoreClient;
@@ -17,7 +18,7 @@ import java.util.Map;
 
 public class AggregatorServer implements Runnable {
 
-    static final Logger logger = Logger.getLogger(AggregatorServer.class);
+    private static final Logger logger = LogManager.getLogger(AggregatorServer.class);
 
     private ConfigStore configStore;
     protected ConfigItem config;

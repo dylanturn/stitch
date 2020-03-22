@@ -4,7 +4,8 @@ import io.redisearch.*;
 import io.redisearch.aggregation.AggregationBuilder;
 import io.redisearch.aggregation.Row;
 import io.redisearch.client.Client;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import stitch.datastore.DataStoreInfo;
 import stitch.datastore.DataStoreStatus;
 import stitch.datastore.resource.ResourceReplicaRole;
@@ -15,7 +16,7 @@ import java.util.*;
 
 public class MetaCacheProvider {
 
-    static final Logger logger = Logger.getLogger(MetaCacheProvider.class);
+    private static final Logger logger = LogManager.getLogger(MetaCacheProvider.class);
 
     private Client resourceSchemaClient;
     private Client datastoreSchemaClient;

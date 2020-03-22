@@ -1,7 +1,8 @@
 package stitch.transport.amqp;
 
 import com.rabbitmq.client.*;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import stitch.rpc.RpcRequest;
 import stitch.rpc.RpcResponse;
 import stitch.transport.TransportHandler;
@@ -10,7 +11,7 @@ import java.io.IOException;
 
 public class AmqpHandler implements DeliverCallback {
 
-    static final Logger logger = Logger.getLogger(AmqpHandler.class);
+    private static final Logger logger = LogManager.getLogger(AmqpHandler.class);
 
     private TransportHandler transportHandler;
     private Channel channel;

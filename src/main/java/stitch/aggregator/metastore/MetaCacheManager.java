@@ -1,8 +1,9 @@
 package stitch.aggregator.metastore;
 
 import io.redisearch.*;
-import org.apache.log4j.Logger;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import stitch.aggregator.AggregatorServer;
 import stitch.datastore.DataStoreClient;
 import stitch.datastore.DataStoreInfo;
@@ -19,7 +20,7 @@ import java.util.*;
 
 public class MetaCacheManager implements MetaStore {
 
-    static final Logger logger = Logger.getLogger(MetaCacheManager.class);
+    private static final Logger logger = LogManager.getLogger(MetaCacheManager.class);
 
     private AggregatorServer aggregatorServer;
     private MetaCacheProvider metaCacheProvider;

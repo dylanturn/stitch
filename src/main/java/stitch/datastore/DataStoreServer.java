@@ -1,7 +1,8 @@
 package stitch.datastore;
 
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import stitch.datastore.resource.ResourceManager;
 import stitch.transport.TransportCallableServer;
 import stitch.rpc.RpcRequestHandler;
@@ -16,7 +17,7 @@ import java.util.List;
 
 public class DataStoreServer implements Runnable {
 
-    static final Logger logger = Logger.getLogger(DataStoreServer.class);
+    private static final Logger logger = LogManager.getLogger(DataStoreServer.class);
 
     ConfigItem config;
     ResourceManager resourceManager;

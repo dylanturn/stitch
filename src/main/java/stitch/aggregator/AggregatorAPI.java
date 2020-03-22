@@ -7,13 +7,10 @@ import org.slf4j.LoggerFactory;
 import stitch.aggregator.metastore.MetaStore;
 import stitch.datastore.DataStoreInfo;
 import stitch.datastore.sqlquery.QueryParser;
-import stitch.datastore.sqlquery.conditions.QueryConditionGroup;
-import stitch.datastore.sqlquery.SearchQuery;
 import stitch.datastore.resource.Resource;
 import stitch.datastore.resource.ResourceRequest;
 
 import java.util.List;
-import java.util.Set;
 
 import static spark.Spark.*;
 
@@ -22,7 +19,9 @@ public class AggregatorAPI {
     private MetaStore metaStore;
 
     public AggregatorAPI(MetaStore metaStore, int port){
+
         ((LoggerContext) LoggerFactory.getILoggerFactory()).getLogger("org.eclipse.jetty").setLevel(Level.ERROR);
+
         this.metaStore = metaStore;
         port(port);
         startAggregatorEndpoints();
@@ -95,8 +94,6 @@ public class AggregatorAPI {
             }
         });
 
-        // ?query="select * from * where created>1000 AND meta_map.meta_key_1=meta_val_1 AND (data_size = 5 OR data_size >= 7)"
-
         get("/api/v1/resource", (request, response) -> {
             response.type("application/json");
             String resourceQuery = request.queryParams("query");
@@ -105,20 +102,6 @@ public class AggregatorAPI {
             } else {
                 return resourceListToJson(metaStore.findResources(QueryParser.parseQuery(resourceQuery)));
             }
-
-            /* response.type("application/json");
-            Set<String> queryStrings = request.queryParams();
-            if(queryStrings.size() == 0){
-                return resourceListToJson(metaStore.listResources());
-            } else {
-                SearchQuery searchQuery = new SearchQuery();
-                for(String queryString : queryStrings){
-                    String[] queryArray = request.queryParams(queryString).split(",");
-                    searchQuery.addCondition(queryString, QueryConditionGroup.Operator.valueOf(queryArray[0].toUpperCase()), queryArray[1]);
-                }
-                return resourceListToJson(metaStore.findResources(searchQuery));
-            }*/
-
         });
         get("/api/v1/resource/:resource_id", (request, response) -> {
             response.type("application/json");

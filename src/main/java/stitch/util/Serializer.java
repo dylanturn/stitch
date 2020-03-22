@@ -1,13 +1,13 @@
 package stitch.util;
 
-import org.apache.log4j.Logger;
-import stitch.datastore.DataStoreServer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 
 public class Serializer {
 
-    static final Logger logger = Logger.getLogger(DataStoreServer.class);
+    private static final Logger logger = LogManager.getLogger(Serializer.class);
 
     public static byte[] objectToBytes(Object obj) throws IOException {
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream();

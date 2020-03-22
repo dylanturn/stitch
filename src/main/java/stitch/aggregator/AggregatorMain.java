@@ -2,7 +2,8 @@ package stitch.aggregator;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.slf4j.LoggerFactory;
 import stitch.util.configuration.item.ConfigItem;
 import stitch.util.configuration.item.ConfigItemType;
@@ -14,7 +15,8 @@ import java.util.Map;
 
 public class AggregatorMain {
 
-    static final Logger logger = Logger.getLogger(AggregatorMain.class);
+    private static final Logger logger = LogManager.getLogger(AggregatorMain.class);
+
     private static Map<String,Thread> aggregatorThreads = new HashMap<>();
 
     public static void main(String[] args) throws Exception {

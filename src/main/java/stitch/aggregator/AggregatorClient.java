@@ -1,6 +1,7 @@
 package stitch.aggregator;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import stitch.aggregator.metastore.MetaStore;
 import stitch.datastore.DataStoreInfo;
 import stitch.datastore.DataStoreStatus;
@@ -20,7 +21,7 @@ import java.util.ArrayList;
 
 public class AggregatorClient implements MetaStore, ResourceStore {
 
-    static final Logger logger = Logger.getLogger(AggregatorClient.class);
+    private static final Logger logger = LogManager.getLogger(AggregatorClient.class);
 
     protected ConfigItem endpointConfig;
     protected TransportCallableClient rpcClient;
