@@ -13,17 +13,31 @@ import java.util.Properties;
 public abstract class ConfigStore {
 
     private static final Logger logger = Logger.getLogger(ConfigStore.class);
-    private static final String propFileName = "application.properties";
+    //private static final String propFileName = "application.properties";
+    private static final String propFileName = null;
     private static final  String propPrefix = "stitch_ps";
 
     private Properties properties = new Properties();
 
     public static ConfigStore loadConfigStore() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
-        Class propClass = Class.forName(loadApplicationProperties().getProperty(String.format("%s_class", propPrefix)));
+        String configClassName;
+        Properties properties = loadApplicationProperties();
+
+        if(properties != null){
+            configClassName = properties.getProperty(String.format("%s_class", propPrefix));
+        } else {
+            configClassName = System.getenv(String.format("%s_class", propPrefix).toUpperCase());
+        }
+
+        Class propClass = Class.forName(configClassName);
         return (ConfigStore) propClass.newInstance();
     }
 
     private static Properties loadApplicationProperties(){
+        if(propFileName == null){
+            return null;
+        }
+
         InputStream inputStream = ConfigStore.class.getClassLoader().getResourceAsStream(propFileName);
         if (inputStream != null) {
             try {
@@ -44,8 +58,11 @@ public abstract class ConfigStore {
     }
 
     protected String readProperty(String propertyName){
-
-        return properties.getProperty(String.format("%s_%s", propPrefix, propertyName));
+        if(properties != null) {
+            return properties.getProperty(String.format("%s_%s", propPrefix, propertyName));
+        } else {
+            return System.getenv(String.format("%s_%s", propPrefix, propertyName).toUpperCase());
+        }
     }
 
     public abstract void writeKey(String keyName, String keyValue);
